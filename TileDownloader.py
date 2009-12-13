@@ -1,10 +1,9 @@
 from Coordinates import MercatorCoord, TileCoord
 import threading
 import urllib2
+from urllib2 import HTTPError
 import random
 import os
-
-from pprint import pprint
 
 """
 URL Examples
@@ -38,7 +37,7 @@ sattelite:
   http://khm0.google.com/kh/v=50&x=165&y=395&z=10
 
 terrain:
-  http://mt0.google.com/vt/v=app.115&x=164&y=394&z=10
+  http://mt0.google.com/vt/v=p&x=164&y=394&z=10
 
 overlay:
   http://mt0.google.com/vt/lyrs=h&x=163&y=396&z=10
@@ -49,6 +48,7 @@ map:
 """
 
 def main():
+    # these tiles represent roughly the UT Austin campus
     tiles = [ TileCoord(59902, 107915, 18),
               TileCoord(59903, 107915, 18),
               TileCoord(59904, 107915, 18),
@@ -79,13 +79,13 @@ def main():
               TileCoord(59905, 107919, 18),
               TileCoord(59906, 107919, 18) ]
     
-    t = TileDownloader("t", tiles)
+    t = TileDownloader("m", tiles, 5)
     t.download()
 
 class TileDownloader(object):
     """Downloads map tiles using multiple threads"""
     
-    def __init__(self, tile_type, tile_list, num_threads = 10):
+    def __init__(self, tile_type, tile_list, num_threads = 5):
         # get the proxies we'll use to prevent Google from banning us ;)
         self._type = tile_type
         
@@ -97,33 +97,40 @@ class TileDownloader(object):
         # assign threads their respective tile lists
         thread_pool = []
         for lst in self._split_lists:
-            thread_pool.append( DownloadThread(lst, self.get_proxy_list()) )
-        
+            thread_pool.append( 
+                DownloadThread(lst, self.get_proxy_list(), self._type) )
+
+        # start all the threads we just created
         for thread in thread_pool:
-            thread.run()
+            # calling 'run()' on a thread waits until it's done, completely
+            # defeating the purpose.  we call 'start()', which works as you'd
+            # expect
+            thread.start()
         
     def split_list(self, lst, n):
         """Splits a list into roughly equal parts"""
         
-        # ensure we don't split into more parts than we can have
+        # ensure we don't split into more parts than we have
         n = min( len(lst), n )
         
-        part_size = len(lst) / n
-        
-        # split the list and store it in the result list
+        # round-robin the items into the list of lists (ie. 'split_lists')
+        counter = 0
+
+        # can't use '[[]] * n' because that simply copies a reference to the 
+        # same empty list into split_lists n times
         split_lists = []
         for i in xrange(n):
-            # as long as this isn't the last section of the list
-            if i < n - 1:
-                split_lists.append( lst[0:part_size] )
-                
-                # trim lst down by the amount we just split it by
-                lst = lst[part_size:]
-            else:
-                split_lists.append( lst[0:] ) # append the remaining piece
+            split_lists.append( [] )
         
-        for l in split_lists:
-            print len(l)
+        for item in lst:
+            # wrap counter to distribute items evenly
+            if counter >= n:
+                counter = 0
+            
+            # add this item to one of the bins in split_lists
+            split_lists[counter].append( item )
+            
+            counter += 1
             
         return split_lists
     
@@ -157,7 +164,6 @@ class TileDownloader(object):
             # takes only the 'address:port' from the list and formats it
             proxy_list[i] = "http://" + proxy_list[i].split()[0] + "/"
         
-        #pprint( proxy_list )
         return proxy_list
 
 class DownloadThread(threading.Thread):
@@ -198,19 +204,27 @@ class DownloadThread(threading.Thread):
             
             request = urllib2.Request(url, headers = {"User-Agent": agent})
             
-            # save the tile to a file (in a style, by the while...)
+            # save the tile to a file (in a style, by the while...).
+            # overwrites previous content without asking
             fname = os.path.join( str( self._dir ),
                                   str( self._type ),
                                   ( str( tile.get_x() ) + "-" +
                                     str( tile.get_y() ) + "-" +
                                     str( tile.get_zoom() ) ) )
             
+            # download and read the tile data
+            try:
+                tile_data = urllib2.urlopen(request).read()
+            except HTTPError, e:
+                print "Failed to download '" + url + "', aborting."
+                break
+
+            # write the tile to its file
             with open(fname, "w") as tfile:
-                # download, read, then write the tile data
-                tfile.write( urllib2.urlopen(request).read() )
-                
+                tfile.write( tile_data )
+            
     def generate_url(self, tile_coord):
-        """Generates a new download url based on the tile_type given."""
+        """Generates a new download url based on the given TileCoord."""
         
         url = "http://"
         
@@ -227,17 +241,17 @@ class DownloadThread(threading.Thread):
         # select the correct identifier
         if self._type == "m" or self._type == "t" or self._type == "o":
             url += "vt"
-        else:
+        else: # satellite
             url += "kh"
         
         url += "/"
         
         # specify type of tiles ('m' needs no special parameters)
         if self._type == "t":
-            url += "v=app.115&"
+            url += "v=p&"
         
         if self._type == "o":
-            url += "lyrs=h&"
+            url += "v=h&"
         
         if self._type == "s":
             url += "v=50&"
