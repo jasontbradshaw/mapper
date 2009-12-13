@@ -79,7 +79,7 @@ def main():
               TileCoord(59905, 107919, 18),
               TileCoord(59906, 107919, 18) ]
     
-    t = TileDownloader("m", tiles, 5)
+    t = TileDownloader("s", tiles, 5)
     t.download()
 
 class TileDownloader(object):
@@ -89,17 +89,17 @@ class TileDownloader(object):
         # get the proxies we'll use to prevent Google from banning us ;)
         self._type = tile_type
         
-        self._split_lists = self.split_list( tile_list, num_threads )
+        self._tile_lists = self.split_list( tile_list, num_threads )
         
     def download(self):
-        """Manages the thread pool that downloads the tiles"""
+        """Manages the thread 'pool' that downloads the tiles"""
         
         # assign threads their respective tile lists
         thread_pool = []
-        for lst in self._split_lists:
+        for lst in self._tile_lists:
             thread_pool.append( 
                 DownloadThread(lst, self.get_proxy_list(), self._type) )
-
+        
         # start all the threads we just created
         for thread in thread_pool:
             # calling 'run()' on a thread waits until it's done, completely
@@ -218,7 +218,7 @@ class DownloadThread(threading.Thread):
             except HTTPError, e:
                 print "Failed to download '" + url + "', aborting."
                 break
-
+            
             # write the tile to its file
             with open(fname, "w") as tfile:
                 tfile.write( tile_data )
@@ -226,36 +226,29 @@ class DownloadThread(threading.Thread):
     def generate_url(self, tile_coord):
         """Generates a new download url based on the given TileCoord."""
         
-        url = "http://"
+        # fill in a random server number [0-3]
+        url = "http://mt%d.google.com/vt/v=" % ( random.randint(0, 3) )
         
-        # select the approproate server name (map, terrain, or overlay)
-        if self._type == "m" or self._type == "t" or self._type == "o":
-            url += "mt"
-        else: # satellite
-            url += "khm"
+        # specify type of tiles we want
+        # map
+        if self._type == "m":
+            url += "m"
         
-        # choose a random server number
-        url += str( random.randint(0, 3) )
-        url += ".google.com/"
-        
-        # select the correct identifier
-        if self._type == "m" or self._type == "t" or self._type == "o":
-            url += "vt"
-        else: # satellite
-            url += "kh"
-        
-        url += "/"
-        
-        # specify type of tiles ('m' needs no special parameters)
+        # terrain
         if self._type == "t":
-            url += "v=p&"
+            url += "p"
         
+        # overlay
         if self._type == "o":
-            url += "v=h&"
+            url += "h"
         
+        # satellite
         if self._type == "s":
-            url += "v=50&"
+            url += "y"
         
+        # get ready for next parameters...
+        url += "&"
+            
         # insert coordinates and zoom from the given TileCoord
         url += "x=" + str( tile_coord.get_x() )
         url += "&"
