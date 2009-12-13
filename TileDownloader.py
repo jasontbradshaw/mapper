@@ -53,7 +53,31 @@ def main():
               TileCoord(59903, 107915, 18),
               TileCoord(59904, 107915, 18),
               TileCoord(59905, 107915, 18),
-              TileCoord(59906, 107915, 18) ]
+              TileCoord(59906, 107915, 18),
+              
+              TileCoord(59902, 107916, 18),
+              TileCoord(59903, 107916, 18),
+              TileCoord(59904, 107916, 18),
+              TileCoord(59905, 107916, 18),
+              TileCoord(59906, 107916, 18),
+              
+              TileCoord(59902, 107917, 18),
+              TileCoord(59903, 107917, 18),
+              TileCoord(59904, 107917, 18),
+              TileCoord(59905, 107917, 18),
+              TileCoord(59906, 107917, 18),
+              
+              TileCoord(59902, 107918, 18),
+              TileCoord(59903, 107918, 18),
+              TileCoord(59904, 107918, 18),
+              TileCoord(59905, 107918, 18),
+              TileCoord(59906, 107918, 18),
+
+              TileCoord(59902, 107919, 18),
+              TileCoord(59903, 107919, 18),
+              TileCoord(59904, 107919, 18),
+              TileCoord(59905, 107919, 18),
+              TileCoord(59906, 107919, 18) ]
     
     t = TileDownloader("t", tiles)
     t.download()
@@ -97,7 +121,6 @@ class TileDownloader(object):
                 lst = lst[part_size:]
             else:
                 split_lists.append( lst[0:] ) # append the remaining piece
-
         
         for l in split_lists:
             print len(l)
