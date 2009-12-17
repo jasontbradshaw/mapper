@@ -1,51 +1,12 @@
-from Coordinates import MercatorCoord, TileCoord
-import threading
 import urllib2
 from urllib2 import HTTPError
+
+import threading
 import random
 import os
 
-"""
-URL Examples
-------------
-sattelite:
-  http://khm1.google.com/kh/v=50&x=165&y=395&z=10&s=Ga
-
-terrain:
-  http://mt0.google.com/vt/v=app.115&hl=en&src=api&x=164&y=394&z=10&s=Galile
-
-overlay:
-  http://mt1.google.com/vt/lyrs=h@115&hl=en&src=api&x=163&y=396&z=10&s=Galil
-
-map:
-  http://mt1.google.com/vt/lyrs=m@115&hl=en&src=api&x=163&y=394&z=10&s=Gal
-
-Notes:
- - 's' appears to be irrelevant, urls work without it
- - ???[0-3].google.com breaks down like so:
-     mt = terrain, overlay, and map tiles
-     khm = sattelite tiles
- - google.com/??/ tells what type of tile to get from the server, like so:
-     vt = terrain, overlay, and map types
-     kh = sattelite tiles
- - google.com/xx/?=? tells what to get from the maps, overlay
-     lyrs=h = overlay tiles
-     lyrs=m = map tiles
-
-Sanitized (Working) Examples:
-sattelite:
-  http://khm0.google.com/kh/v=50&x=165&y=395&z=10
-
-terrain:
-  http://mt0.google.com/vt/v=p&x=164&y=394&z=10
-
-overlay:
-  http://mt0.google.com/vt/lyrs=h&x=163&y=396&z=10
-
-map:
-  http://mt0.google.com/vt/x=163&y=394&z=10
-
-"""
+# the tile objects we will be using
+from Coordinates import MercatorCoord, TileCoord
 
 def main():
     # these tiles represent roughly the UT Austin campus
@@ -79,7 +40,7 @@ def main():
               TileCoord(59905, 107919, 18),
               TileCoord(59906, 107919, 18) ]
     
-    t = TileDownloader("s", tiles, 5)
+    t = TileDownloader("o", tiles, 5)
     t.download()
 
 class TileDownloader(object):
@@ -108,7 +69,7 @@ class TileDownloader(object):
             thread.start()
         
     def split_list(self, lst, n):
-        """Splits a list into roughly equal parts"""
+        """Splits a list into roughly n equal parts"""
         
         # ensure we don't split into more parts than we have
         n = min( len(lst), n )
@@ -200,9 +161,7 @@ class DownloadThread(threading.Thread):
         # download every TileCoord this thread was given
         for tile in self._tile_list:
             # build the url we'll use to download this tile
-            url = self.generate_url( tile )
-            
-            request = urllib2.Request(url, headers = {"User-Agent": agent})
+            request = self.generate_request( tile )
             
             # save the tile to a file (in a style, by the while...).
             # overwrites previous content without asking
@@ -216,15 +175,15 @@ class DownloadThread(threading.Thread):
             try:
                 tile_data = urllib2.urlopen(request).read()
             except HTTPError, e:
-                print "Failed to download '" + url + "', aborting."
+                print "Failed to download '" + str(tile) + "', aborting."
                 break
             
             # write the tile to its file
             with open(fname, "w") as tfile:
                 tfile.write( tile_data )
             
-    def generate_url(self, tile_coord):
-        """Generates a new download url based on the given TileCoord."""
+    def generate_request(self, tile_coord):
+        """Generates a new download request based on the given TileCoord."""
         
         # fill in a random server number [0-3]
         url = "http://mt%d.google.com/vt/v=" % ( random.randint(0, 3) )
@@ -235,6 +194,7 @@ class DownloadThread(threading.Thread):
             url += "m"
         
         # terrain
+        # TODO: make terrain downloading work at all
         if self._type == "t":
             url += "p"
         
@@ -256,7 +216,12 @@ class DownloadThread(threading.Thread):
         url += "&"
         url += "z=" + str( tile_coord.get_zoom() )
         
-        return url
+        # spoof the user agent again (just in case this time)
+        agent  = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
+        agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
+        agent += "Chrome/4.0.249.30 Safari/532.5"
+        
+        return urllib2.Request(url, headers = {"User-Agent": agent})
 
 if __name__ == "__main__":
     main()

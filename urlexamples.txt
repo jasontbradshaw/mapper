@@ -1,0 +1,38 @@
+URL Examples
+------------
+sattelite:
+  http://khm1.google.com/kh/v=50&x=165&y=395&z=10&s=Ga
+
+terrain:
+  http://mt0.google.com/vt/v=app.115&hl=en&src=api&x=164&y=394&z=10&s=Galile
+
+overlay:
+  http://mt1.google.com/vt/lyrs=h@115&hl=en&src=api&x=163&y=396&z=10&s=Galil
+
+map:
+  http://mt1.google.com/vt/lyrs=m@115&hl=en&src=api&x=163&y=394&z=10&s=Gal
+
+Notes:
+ - 's' appears to be irrelevant, urls work without it
+ - ???[0-3].google.com breaks down like so:
+     mt = terrain, overlay, and map tiles
+     khm = sattelite tiles
+ - google.com/??/ tells what type of tile to get from the server, like so:
+     vt = terrain, overlay, and map types
+     kh = sattelite tiles
+ - google.com/xx/?=? tells what to get from the maps, overlay
+     lyrs=h = overlay tiles
+     lyrs=m = map tiles
+
+Sanitized (Working) Examples:
+sattelite:
+  http://khm0.google.com/kh/v=50&x=165&y=395&z=10
+
+terrain:
+  http://mt0.google.com/vt/v=p&x=164&y=394&z=10
+
+overlay:
+  http://mt0.google.com/vt/lyrs=h&x=163&y=396&z=10
+
+map:
+  http://mt0.google.com/vt/x=163&y=394&z=10
