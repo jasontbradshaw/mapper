@@ -122,11 +122,9 @@ class TileDownloader(object):
         # form a list from the lines we just got
         proxy_list = proxy_text.split("\n")
         
-        # format each line to the 'ProxyHandler' specification:
-        #     http://<ip-address>:<port>/
-        # see the 'urllib2' documentation (at the very bottom) for more info
+        # parse each line down to '<ip-address>:<port>'
         for i in xrange( len(proxy_list) ):
-            # takes only the 'address:port' from the list and formats it
+            # takes only the 'address:port' from the line (the first thing)
             proxy_list[i] = proxy_list[i].split()[0]
         
         return proxy_list
