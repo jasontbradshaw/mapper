@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from math import pi, atan, exp, sin, log
 
 def main():

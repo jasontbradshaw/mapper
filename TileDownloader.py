@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import urllib2
 from urllib2 import HTTPError
 
@@ -40,13 +42,13 @@ def main():
               TileCoord(59905, 107919, 18),
               TileCoord(59906, 107919, 18) ]
     
-    t = TileDownloader("o", tiles, 5)
+    t = TileDownloader("m", tiles, 2)
     t.download()
 
 class TileDownloader(object):
     """Downloads map tiles using multiple threads"""
     
-    def __init__(self, tile_type, tile_list, num_threads = 5):
+    def __init__(self, tile_type, tile_list, num_threads = 2):
         # get the proxies we'll use to prevent Google from banning us ;)
         self._type = tile_type
         
