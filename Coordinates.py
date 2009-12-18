@@ -17,11 +17,20 @@ class MercatorCoord(object):
     def get_latitude(self):
         return self._latitude
     
+    def set_latitude(self, new_lat):
+        self._latitude = new_lat
+    
     def get_longitude(self):
         return self._longitude
     
+    def set_longitude(self, new_long):
+        self._longitude = new_lon
+    
     def get_zoom(self):
         return self._zoom
+    
+    def set_zoom(self, new_zoom):
+        self._zoom = new_zoom
     
     def convert(self):
         """
@@ -71,11 +80,20 @@ class TileCoord(object):
     def get_x(self):
         return self._x
     
+    def set_x(self, new_x):
+        self._x = new_x
+    
     def get_y(self):
         return self._y
     
+    def set_y(self, new_y):
+        self._y = new_y
+    
     def get_zoom(self):
         return self._zoom
+    
+    def set_zoom(self, new_zoom):
+        self._zoom = new_zoom
     
     def convert(self):
         """
