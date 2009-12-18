@@ -55,11 +55,15 @@ class TileDownloader(object):
     def download(self):
         """Manages the thread 'pool' that downloads the tiles"""
         
+        # get the global proxy list once, to prevent getting it once per thread
+        # TODO: fix/implement proxy-enabled downloading (doesn't work as-is)
+        proxy_list = self.get_proxy_list()
+
         # assign threads their respective tile lists
         thread_pool = []
-        for lst in self._tile_lists:
+        for tile_list in self._tile_lists:
             thread_pool.append( 
-                DownloadThread(lst, self.get_proxy_list(), self._type) )
+                DownloadThread(tile_list, proxy_list, self._type) )
         
         # start all the threads we just created
         for thread in thread_pool:
@@ -123,7 +127,7 @@ class TileDownloader(object):
         # see the 'urllib2' documentation (at the very bottom) for more info
         for i in xrange( len(proxy_list) ):
             # takes only the 'address:port' from the list and formats it
-            proxy_list[i] = "http://" + proxy_list[i].split()[0] + "/"
+            proxy_list[i] = proxy_list[i].split()[0]
         
         return proxy_list
 
@@ -137,7 +141,10 @@ class DownloadThread(threading.Thread):
         self._proxy_list = proxy_list
         self._dir = destination_directory
         
-        # used by function 'generate_url'
+        # shuffle the list so we can easily cycle through it to prevent repeats
+        random.shuffle( self._proxy_list )
+        
+        # used by function 'generate_request'
         self._type = tile_type
         
         # needs to be called by convention
@@ -152,16 +159,18 @@ class DownloadThread(threading.Thread):
         except OSError, e:
             # ignore preexisting directory, since we probably created it
             pass
-        
-        # spoof the user agent again (just in case this time)
-        agent  = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
-        agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
-        agent += "Chrome/4.0.249.30 Safari/532.5"
+
+        # # build the object that will give us our list of proxies
+        # proxy_generator = self.build_proxy_generator()
+        # print proxy_generator
         
         # download every TileCoord this thread was given
         for tile in self._tile_list:
             # build the url we'll use to download this tile
             request = self.generate_request( tile )
+            
+            # # cycle through our proxy list
+            # request.set_proxy(proxy_generator.next(), "http")
             
             # save the tile to a file (in a style, by the while...).
             # overwrites previous content without asking
@@ -182,8 +191,28 @@ class DownloadThread(threading.Thread):
             with open(fname, "w") as tfile:
                 tfile.write( tile_data )
             
+    def build_proxy_generator(self):
+        """Build a generator for proxies in the object's proxy_list"""
+        
+        # this will let us start over after we have exhausted the list
+        yield_count = 0
+        while True:
+            yield self._proxy_list[yield_count]
+            
+            yield_count += 1
+            
+            if yield_count > len( self._proxy_list ):
+                yield_count = 0
+                
+                # reshuffle once we've been through the list once
+                random.shuffle( self._proxy_list )
+            
+        
     def generate_request(self, tile_coord):
         """Generates a new download request based on the given TileCoord."""
+        
+        # make sure we're dealing with TileCoords and not MercatorCoords
+        assert isinstance(tile_coord, TileCoord)
         
         # fill in a random server number [0-3]
         url = "http://mt%d.google.com/vt/v=" % ( random.randint(0, 3) )
@@ -195,17 +224,21 @@ class DownloadThread(threading.Thread):
         
         # terrain
         # TODO: make terrain downloading work at all
-        if self._type == "t":
+        elif self._type == "t":
             url += "p"
         
         # overlay
-        if self._type == "o":
+        elif self._type == "o":
             url += "h"
         
         # satellite
-        if self._type == "s":
+        elif self._type == "s":
             url += "y"
         
+        else:
+            # simple error report, download should fail with an HTTPError
+            print "Tile type " + self._type + "' was not recognized."
+            
         # get ready for next parameters...
         url += "&"
             
