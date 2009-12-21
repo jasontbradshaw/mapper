@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from Coordinates import MercatorCoord, TileCoord
-
 import math
 from pprint import pprint
+
+from Coordinates import MercatorCoord, TileCoord
 
 def main():
     coords = [ MercatorCoord(30.23029793153857, -97.82398223876953, 16),
@@ -11,9 +11,6 @@ def main():
                MercatorCoord(30.342361542010376, -97.55859375, 16) ]
     
     t = TileCalculator(coords, 16)
-    g = t.make_grid(18)
-
-    print len( g[0] ), len( g )
     
     print len( t.get_line(coords[0], coords[1], 18) )
 
@@ -34,7 +31,7 @@ class TileCalculator(object):
         self._merc_coords = merc_coords
     
     def calculate(self):
-        """Calculate the tiles from the given vertices"""
+        """Calculate the interior tiles from the given vertices"""
         
         grid = make_grid( self._start_zoom )
         
@@ -85,7 +82,7 @@ class TileCalculator(object):
     def get_line(self, merc0, merc1, zoom):
         """
         Bresenham's line drawing algorithm, modified to yield all the
-        points between x and y at a certain zoom (including endpoints).
+        points between x and y at a certain zoom (excluding endpoints).
         """
         
         # set the zoom in the MercatorCoords so we can convert them
@@ -133,8 +130,8 @@ class TileCalculator(object):
         else:
             ystep = -1
         
-        # add all the points to our list, starting with the first endpoint
-        line_list = [tile0]
+        # add all the points to our list
+        line_list = []
         for x in xrange(x0, x1):
             if steep:
                 line_list.append( TileCoord(y, x, zoom) )
@@ -147,15 +144,7 @@ class TileCalculator(object):
                 y = y + ystep
                 error = error + deltax
         
-        # slap the other endpoint on
-        line_list.append(tile1)
-        
         return line_list
-    
-    def get_all(self):
-        """Return all the tiles found as one giant list"""
-        
-        pass
     
 if __name__ == "__main__":
     main()
