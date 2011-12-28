@@ -18,23 +18,17 @@ class TileDownloader:
     TILE_TYPE_SATELLITE = "satellite"
 
     def __init__(self, tile_type, tile_list, num_threads = 2):
-        # get the proxies we'll use to prevent Google from banning us ;)
         self._type = tile_type
-
         self._tile_lists = self.split_list( tile_list, num_threads )
 
     def download(self):
         """Manages the thread 'pool' that downloads the tiles."""
 
-        # get the global proxy list once, to prevent getting it once per thread
-        # TODO: fix/implement proxy-enabled downloading (doesn't work as-is)
-        proxy_list = self.get_proxy_list()
-
         # assign threads their respective tile lists
         thread_pool = []
         for tile_list in self._tile_lists:
             thread_pool.append(
-                DownloadThread(tile_list, proxy_list, self._type) )
+                DownloadThread(tile_list, self._type) )
 
         # start all the threads we just created
         for thread in thread_pool:
@@ -70,48 +64,14 @@ class TileDownloader:
 
         return split_lists
 
-    def get_proxy_list(self):
-        # the site we'll get our list from
-        url  = "http://www.digitalcybersoft.com"
-        url += "/ProxyList/fresh-proxy-list.shtml"
-
-        # spoof the user agent (turns out the admin doesn't like scripts...)
-        # we'll use a Chrome dev build, just for super-nerdy kicks :)
-        agent  = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
-        agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
-        agent += "Chrome/4.0.249.30 Safari/532.5"
-        request = urllib2.Request(url, headers = {"User-Agent": agent})
-
-        # open it and read the site's HTML contents
-        proxy_text = urllib2.urlopen(request).read()
-
-        # format the text by splitting out the thing after '<pre>' in the
-        # original text and before '</pre>' in the previous split
-        proxy_text = proxy_text.split("<pre>")[1].split("</pre>")[0]
-        proxy_text = proxy_text.strip()
-
-        # form a list from the lines we just got
-        proxy_list = proxy_text.split("\n")
-
-        # parse each line down to '<ip-address>:<port>'
-        for i in xrange( len(proxy_list) ):
-            # takes only the 'address:port' from the line (the first thing)
-            proxy_list[i] = proxy_list[i].split()[0]
-
-        return proxy_list
-
 class DownloadThread(threading.Thread):
-    """Downloads given tiles using a proxy list."""
+    """Downloads given tiles."""
 
-    def __init__( self, tile_list, proxy_list, tile_type = "m",
+    def __init__( self, tile_list, tile_type = "m",
                   destination_directory = "" ):
 
         self._tile_list = tile_list
-        self._proxy_list = proxy_list
         self._dir = destination_directory
-
-        # shuffle the list so we can easily cycle through it to prevent repeats
-        random.shuffle( self._proxy_list )
 
         # used by function 'generate_request'
         self._type = tile_type
@@ -129,17 +89,10 @@ class DownloadThread(threading.Thread):
             # ignore preexisting directory, since we probably created it
             pass
 
-        # # build the object that will give us our list of proxies
-        # proxy_generator = self.build_proxy_generator()
-        # print proxy_generator
-
         # download every TileCoord this thread was given
         for tile in self._tile_list:
             # build the url we'll use to download this tile
             request = self.generate_request( tile )
-
-            # # cycle through our proxy list
-            # request.set_proxy(proxy_generator.next(), "http")
 
             # save the tile to a file (in a style, by the while...).
             # overwrites previous content without asking
@@ -159,23 +112,6 @@ class DownloadThread(threading.Thread):
             # write the tile to its file
             with open(fname, "w") as tfile:
                 tfile.write( tile_data )
-
-    def build_proxy_generator(self):
-        """Build a generator for proxies in the object's proxy_list"""
-
-        # this will let us start over after we have exhausted the list
-        yield_count = 0
-        while True:
-            yield self._proxy_list[yield_count]
-
-            yield_count += 1
-
-            if yield_count > len( self._proxy_list ):
-                yield_count = 0
-
-                # reshuffle once we've been through the list once
-                random.shuffle( self._proxy_list )
-
 
     def generate_request(self, tile_coord):
         """Generates a new download request based on the given TileCoord."""
