@@ -17,31 +17,32 @@ class TileDownloader:
     TILE_TYPE_TERRAIN = "terrain"
     TILE_TYPE_SATELLITE = "satellite"
 
-    def __init__(self, tile_type, tile_list, num_threads = 2):
-        self._type = tile_type
-        self._tile_lists = self.split_list( tile_list, num_threads )
+    def __init__(self, tile_type, tile_list, num_threads=4):
+        self.tile_type = tile_type
+        self.tile_list = tile_list
+        self.num_threads = num_threads
 
     def download(self):
         """Manages the thread 'pool' that downloads the tiles."""
 
         # assign threads their respective tile lists
         thread_pool = []
-        for tile_list in self._tile_lists:
-            thread_pool.append(
-                DownloadThread(tile_list, self._type) )
+        for tile_list in self.split_list(self.tile_list, self.num_threads):
+            thread_pool.append(DownloadThread(tile_list, self.tile_type) )
 
         # start all the threads we just created
         for thread in thread_pool:
-            # calling 'run()' on a thread waits until it's done, completely
-            # defeating the purpose.  we call 'start()', which works as you'd
-            # expect
             thread.start()
+
+        # wait for all the threads to finish
+        for thread in thread_pool:
+            thread.join()
 
     def split_list(self, lst, n):
         """Splits a list into roughly n equal parts."""
 
         # ensure we don't split into more parts than we have
-        n = min( len(lst), n )
+        n = min(len(lst), n)
 
         # round-robin the items into the list of lists (ie. 'split_lists')
         counter = 0
@@ -50,7 +51,7 @@ class TileDownloader:
         # same empty list into split_lists n times
         split_lists = []
         for i in xrange(n):
-            split_lists.append( [] )
+            split_lists.append([])
 
         for item in lst:
             # wrap counter to distribute items evenly
@@ -58,7 +59,7 @@ class TileDownloader:
                 counter = 0
 
             # add this item to one of the bins in split_lists
-            split_lists[counter].append( item )
+            split_lists[counter].append(item)
 
             counter += 1
 
@@ -67,8 +68,7 @@ class TileDownloader:
 class DownloadThread(threading.Thread):
     """Downloads given tiles."""
 
-    def __init__( self, tile_list, tile_type = "m",
-                  destination_directory = "" ):
+    def __init__(self, tile_list, tile_type = "m", destination_directory=""):
 
         self._tile_list = tile_list
         self._dir = destination_directory
@@ -84,7 +84,7 @@ class DownloadThread(threading.Thread):
 
         # create the download directory, if it doesn't exist
         try:
-            os.mkdir( os.path.join( str(self._dir), str(self._type) ) )
+            os.mkdir(os.path.join(str(self._dir), str(self._type)))
         except OSError, e:
             # ignore preexisting directory, since we probably created it
             pass
@@ -92,7 +92,7 @@ class DownloadThread(threading.Thread):
         # download every TileCoord this thread was given
         for tile in self._tile_list:
             # fill in a random server number [0-3]
-            url = "http://mt%d.google.com/vt/v=" % ( random.randint(0, 3) )
+            url = "http://mt%d.google.com/vt/v=" % random.randint(0, 3)
 
             # specify type of tiles we want
             # map
@@ -120,26 +120,26 @@ class DownloadThread(threading.Thread):
             url += "&"
 
             # insert coordinates and zoom from the given TileCoord
-            url += "x=" + str( tile.x )
+            url += "x=" + str(tile.x)
             url += "&"
-            url += "y=" + str( tile.y )
+            url += "y=" + str(tile.y)
             url += "&"
-            url += "z=" + str( tile.zoom )
+            url += "z=" + str(tile.zoom)
 
             # spoof the user agent again (just in case this time)
             agent  = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
             agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
             agent += "Chrome/4.0.249.30 Safari/532.5"
 
-            request = urllib2.Request(url, headers = {"User-Agent": agent})
+            request = urllib2.Request(url, headers={"User-Agent": agent})
 
             # save the tile to a file (in a style, by the while...).
             # overwrites previous content without asking
-            fname = os.path.join( str( self._dir ),
-                                  str( self._type ),
-                                  ( str( tile.x ) + "-" +
-                                    str( tile.y ) + "-" +
-                                    str( tile.zoom ) ) )
+            fname = os.path.join(str(self._dir),
+                                 str(self._type),
+                                 (str(tile.x) + "-" +
+                                  str(tile.y) + "-" +
+                                  str(tile.zoom)))
 
             # download and read the tile data
             try:
@@ -150,7 +150,7 @@ class DownloadThread(threading.Thread):
 
             # write the tile to its file
             with open(fname, "w") as tfile:
-                tfile.write( tile_data )
+                tfile.write(tile_data)
 
 if __name__ == "__main__":
     # these tiles represent roughly the UT Austin campus
@@ -186,5 +186,5 @@ if __name__ == "__main__":
         TileCoord(59906, 107919, 18)
     ]
 
-    t = TileDownloader(TileDownloader.TILE_TYPE_MAP, tiles, 2)
+    t = TileDownloader(TileDownloader.TILE_TYPE_MAP, tiles)
     t.download()
