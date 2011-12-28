@@ -7,7 +7,6 @@ import threading
 import random
 import os
 
-# the tile objects we will be using
 from coordinates import MercatorCoord, TileCoord
 
 def main():
@@ -44,7 +43,7 @@ def main():
         TileCoord(59906, 107919, 18)
     ]
 
-    t = TileDownloader("m", tiles, 2)
+    t = TileDownloader(TileDownloader.TILE_TYPE_MAP, tiles, 2)
     t.download()
 
 class TileDownloader:
@@ -226,20 +225,20 @@ class DownloadThread(threading.Thread):
 
         # specify type of tiles we want
         # map
-        if self._type == "m":
+        if self._type == TileDownloader.TILE_TYPE_MAP:
             url += "m"
 
         # terrain
         # TODO: make terrain downloading work at all
-        elif self._type == "t":
+        elif self._type == TileDownloader.TILE_TYPE_TERRAIN:
             url += "p"
 
         # overlay
-        elif self._type == "o":
+        elif self._type == TileDownloader.TILE_TYPE_OVERLAY:
             url += "h"
 
         # satellite
-        elif self._type == "s":
+        elif self._type == TileDownloader.TILE_TYPE_SATELLITE:
             url += "y"
 
         else:
