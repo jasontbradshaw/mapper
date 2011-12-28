@@ -3,7 +3,7 @@
 import math
 from pprint import pprint
 
-from Coordinates import MercatorCoord, TileCoord
+from coordinates import MercatorCoord, TileCoord
 
 def main():
     coords = [ MercatorCoord(30.23029793153857, -97.82398223876953, 16),

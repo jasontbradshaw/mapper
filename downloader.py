@@ -8,7 +8,7 @@ import random
 import os
 
 # the tile objects we will be using
-from Coordinates import MercatorCoord, TileCoord
+from coordinates import MercatorCoord, TileCoord
 
 def main():
     # these tiles represent roughly the UT Austin campus
