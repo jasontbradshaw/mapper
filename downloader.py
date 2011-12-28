@@ -9,43 +9,6 @@ import os
 
 from coordinates import MercatorCoord, TileCoord
 
-def main():
-    # these tiles represent roughly the UT Austin campus
-    tiles = [
-        TileCoord(59902, 107915, 18),
-        TileCoord(59903, 107915, 18),
-        TileCoord(59904, 107915, 18),
-        TileCoord(59905, 107915, 18),
-        TileCoord(59906, 107915, 18),
-
-        TileCoord(59902, 107916, 18),
-        TileCoord(59903, 107916, 18),
-        TileCoord(59904, 107916, 18),
-        TileCoord(59905, 107916, 18),
-        TileCoord(59906, 107916, 18),
-
-        TileCoord(59902, 107917, 18),
-        TileCoord(59903, 107917, 18),
-        TileCoord(59904, 107917, 18),
-        TileCoord(59905, 107917, 18),
-        TileCoord(59906, 107917, 18),
-
-        TileCoord(59902, 107918, 18),
-        TileCoord(59903, 107918, 18),
-        TileCoord(59904, 107918, 18),
-        TileCoord(59905, 107918, 18),
-        TileCoord(59906, 107918, 18),
-
-        TileCoord(59902, 107919, 18),
-        TileCoord(59903, 107919, 18),
-        TileCoord(59904, 107919, 18),
-        TileCoord(59905, 107919, 18),
-        TileCoord(59906, 107919, 18)
-    ]
-
-    t = TileDownloader(TileDownloader.TILE_TYPE_MAP, tiles, 2)
-    t.download()
-
 class TileDownloader:
     """Downloads map tiles using multiple threads."""
 
@@ -263,4 +226,38 @@ class DownloadThread(threading.Thread):
         return urllib2.Request(url, headers = {"User-Agent": agent})
 
 if __name__ == "__main__":
-    main()
+    # these tiles represent roughly the UT Austin campus
+    tiles = [
+        TileCoord(59902, 107915, 18),
+        TileCoord(59903, 107915, 18),
+        TileCoord(59904, 107915, 18),
+        TileCoord(59905, 107915, 18),
+        TileCoord(59906, 107915, 18),
+
+        TileCoord(59902, 107916, 18),
+        TileCoord(59903, 107916, 18),
+        TileCoord(59904, 107916, 18),
+        TileCoord(59905, 107916, 18),
+        TileCoord(59906, 107916, 18),
+
+        TileCoord(59902, 107917, 18),
+        TileCoord(59903, 107917, 18),
+        TileCoord(59904, 107917, 18),
+        TileCoord(59905, 107917, 18),
+        TileCoord(59906, 107917, 18),
+
+        TileCoord(59902, 107918, 18),
+        TileCoord(59903, 107918, 18),
+        TileCoord(59904, 107918, 18),
+        TileCoord(59905, 107918, 18),
+        TileCoord(59906, 107918, 18),
+
+        TileCoord(59902, 107919, 18),
+        TileCoord(59903, 107919, 18),
+        TileCoord(59904, 107919, 18),
+        TileCoord(59905, 107919, 18),
+        TileCoord(59906, 107919, 18)
+    ]
+
+    t = TileDownloader(TileDownloader.TILE_TYPE_MAP, tiles, 2)
+    t.download()
