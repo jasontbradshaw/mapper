@@ -6,35 +6,35 @@ def main():
     print MercatorCoord(30.2832, -97.7362, 18).convert()
     print TileCoord(59902, 107915, 18).convert()
 
-class MercatorCoord(object):
-    """A Mercator projection coordinate"""
+class MercatorCoord:
+    """A Mercator projection coordinate."""
     
     def __init__(self, lat, lon, zoom):
-        self._latitude = lat
-        self._longitude = lon
-        self._zoom = zoom
+        self.latitude = lat
+        self.longitude = lon
+        self.zoom = zoom
         
     def get_latitude(self):
-        return self._latitude
+        return self.latitude
     
     def set_latitude(self, new_lat):
-        self._latitude = new_lat
+        self.latitude = new_lat
     
     def get_longitude(self):
-        return self._longitude
+        return self.longitude
     
     def set_longitude(self, new_long):
-        self._longitude = new_lon
+        self.longitude = new_lon
     
     def get_zoom(self):
-        return self._zoom
+        return self.zoom
     
     def set_zoom(self, new_zoom):
-        self._zoom = new_zoom
+        self.zoom = new_zoom
     
     def convert(self):
         """
-        Convert this to a TileCoord
+        Convert this to a TileCoord.
         Conversion formula gleaned from Jeremy R. Geerdes' post:
         http://groups.google.com/group/google-maps-api/msg/7a0aba451045ed94
         """
@@ -66,16 +66,16 @@ class MercatorCoord(object):
         return TileCoord(x_tile, y_tile, zoom)
     
     def __str__(self):
-        return "%f, %f, %d" % (self._latitude, self._longitude, self._zoom)
+        return "%f, %f, %d" % (self.latitude, self.longitude, self.zoom)
 
-class TileCoord(object):
-    """A Google Maps tile coordinate"""
+class TileCoord:
+    """A Google Maps tile coordinate."""
     
     def __init__(self, x, y, zoom):
         # x and y are tile-level only (ie. they are not in-tile coords)
         self._x = x
         self._y = y
-        self._zoom = zoom
+        self.zoom = zoom
     
     def get_x(self):
         return self._x
@@ -90,14 +90,14 @@ class TileCoord(object):
         self._y = new_y
     
     def get_zoom(self):
-        return self._zoom
+        return self.zoom
     
     def set_zoom(self, new_zoom):
-        self._zoom = new_zoom
+        self.zoom = new_zoom
     
     def convert(self):
         """
-        Convert this to a MercartorCoord
+        Convert this to a MercartorCoord.
         Conversion formula gleaned from Jeremy R. Geerdes' post:
         http://groups.google.com/group/google-maps-api/msg/7a0aba451045ed94
         """
@@ -125,7 +125,7 @@ class TileCoord(object):
         return MercatorCoord(latitude, longitude, zoom)
 
     def __str__(self):
-        return "%d, %d, %d" % (self._x, self._y, self._zoom)
+        return "%d, %d, %d" % (self._x, self._y, self.zoom)
 
 if __name__ == "__main__":
     main()

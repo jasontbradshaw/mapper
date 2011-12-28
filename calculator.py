@@ -14,14 +14,14 @@ def main():
     
     print len( t.get_line(coords[0], coords[1], 18) )
 
-class TileCalculator(object):
+class TileCalculator:
     """
     Calculates all the tiles in a region from the specified zoom level down.
     Needs a list containing all the in-order vertices of a polygon to do so.
     """
     
     def __init__(self, merc_coords, start_zoom):
-        """Convert the MercatorCoords to TileCoords"""
+        """Convert the MercatorCoords to TileCoords."""
         
         assert len(merc_coords) > 0
         
@@ -31,7 +31,7 @@ class TileCalculator(object):
         self._merc_coords = merc_coords
     
     def calculate(self):
-        """Calculate the interior tiles from the given vertices"""
+        """Calculate the interior tiles from the given vertices."""
         
         grid = make_grid( self._start_zoom )
         
@@ -41,7 +41,7 @@ class TileCalculator(object):
             pass
         
     def make_grid(self, zoom):
-        """Create an appropriately sized grid for a given zoom level"""
+        """Create an appropriately sized grid for a given zoom level."""
         
         # convert the first tile so we can set the min/max vars from something
         first_tile = self._merc_coords[0]

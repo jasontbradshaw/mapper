@@ -45,8 +45,8 @@ def main():
     t = TileDownloader("m", tiles, 2)
     t.download()
 
-class TileDownloader(object):
-    """Downloads map tiles using multiple threads"""
+class TileDownloader:
+    """Downloads map tiles using multiple threads."""
     
     def __init__(self, tile_type, tile_list, num_threads = 2):
         # get the proxies we'll use to prevent Google from banning us ;)
@@ -55,7 +55,7 @@ class TileDownloader(object):
         self._tile_lists = self.split_list( tile_list, num_threads )
         
     def download(self):
-        """Manages the thread 'pool' that downloads the tiles"""
+        """Manages the thread 'pool' that downloads the tiles."""
         
         # get the global proxy list once, to prevent getting it once per thread
         # TODO: fix/implement proxy-enabled downloading (doesn't work as-is)
@@ -75,7 +75,7 @@ class TileDownloader(object):
             thread.start()
         
     def split_list(self, lst, n):
-        """Splits a list into roughly n equal parts"""
+        """Splits a list into roughly n equal parts."""
         
         # ensure we don't split into more parts than we have
         n = min( len(lst), n )
@@ -132,7 +132,7 @@ class TileDownloader(object):
         return proxy_list
 
 class DownloadThread(threading.Thread):
-    """Downloads given tiles using a proxy list"""
+    """Downloads given tiles using a proxy list."""
     
     def __init__( self, tile_list, proxy_list, tile_type = "m",
                   destination_directory = "" ):
