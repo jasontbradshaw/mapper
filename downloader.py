@@ -91,8 +91,47 @@ class DownloadThread(threading.Thread):
 
         # download every TileCoord this thread was given
         for tile in self._tile_list:
-            # build the url we'll use to download this tile
-            request = self.generate_request( tile )
+            # fill in a random server number [0-3]
+            url = "http://mt%d.google.com/vt/v=" % ( random.randint(0, 3) )
+
+            # specify type of tiles we want
+            # map
+            if self._type == TileDownloader.TILE_TYPE_MAP:
+                url += "m"
+
+            # terrain
+            # TODO: make terrain downloading work at all
+            elif self._type == TileDownloader.TILE_TYPE_TERRAIN:
+                url += "p"
+
+            # overlay
+            elif self._type == TileDownloader.TILE_TYPE_OVERLAY:
+                url += "h"
+
+            # satellite
+            elif self._type == TileDownloader.TILE_TYPE_SATELLITE:
+                url += "y"
+
+            else:
+                # simple error report, download should fail with an HTTPError
+                print "Tile type " + self._type + "' was not recognized."
+
+            # get ready for next parameters...
+            url += "&"
+
+            # insert coordinates and zoom from the given TileCoord
+            url += "x=" + str( tile.x )
+            url += "&"
+            url += "y=" + str( tile.y )
+            url += "&"
+            url += "z=" + str( tile.zoom )
+
+            # spoof the user agent again (just in case this time)
+            agent  = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
+            agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
+            agent += "Chrome/4.0.249.30 Safari/532.5"
+
+            request = urllib2.Request(url, headers = {"User-Agent": agent})
 
             # save the tile to a file (in a style, by the while...).
             # overwrites previous content without asking
@@ -112,54 +151,6 @@ class DownloadThread(threading.Thread):
             # write the tile to its file
             with open(fname, "w") as tfile:
                 tfile.write( tile_data )
-
-    def generate_request(self, tile_coord):
-        """Generates a new download request based on the given TileCoord."""
-
-        # make sure we're dealing with TileCoords and not MercatorCoords
-        assert isinstance(tile_coord, TileCoord)
-
-        # fill in a random server number [0-3]
-        url = "http://mt%d.google.com/vt/v=" % ( random.randint(0, 3) )
-
-        # specify type of tiles we want
-        # map
-        if self._type == TileDownloader.TILE_TYPE_MAP:
-            url += "m"
-
-        # terrain
-        # TODO: make terrain downloading work at all
-        elif self._type == TileDownloader.TILE_TYPE_TERRAIN:
-            url += "p"
-
-        # overlay
-        elif self._type == TileDownloader.TILE_TYPE_OVERLAY:
-            url += "h"
-
-        # satellite
-        elif self._type == TileDownloader.TILE_TYPE_SATELLITE:
-            url += "y"
-
-        else:
-            # simple error report, download should fail with an HTTPError
-            print "Tile type " + self._type + "' was not recognized."
-
-        # get ready for next parameters...
-        url += "&"
-
-        # insert coordinates and zoom from the given TileCoord
-        url += "x=" + str( tile_coord.x )
-        url += "&"
-        url += "y=" + str( tile_coord.y )
-        url += "&"
-        url += "z=" + str( tile_coord.zoom )
-
-        # spoof the user agent again (just in case this time)
-        agent  = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
-        agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
-        agent += "Chrome/4.0.249.30 Safari/532.5"
-
-        return urllib2.Request(url, headers = {"User-Agent": agent})
 
 if __name__ == "__main__":
     # these tiles represent roughly the UT Austin campus
