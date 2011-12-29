@@ -14,7 +14,8 @@ class TileCalculator:
     def get_line(merc0, merc1, zoom):
         """
         Bresenham's line drawing algorithm, modified to yield all the
-        tiles between merc0 and merc1 at a certain zoom (excluding endpoints).
+        tiles between merc0 and merc1 at a certain zoom, including endpoints.
+        Tiles are not guaranteed to be in any specific order.
         """
 
         # set the zoom in the MercatorCoords so we can convert them
@@ -53,7 +54,7 @@ class TileCalculator:
             ystep = -1
 
         # add all the points to our list
-        line_list = []
+        line_list = [tile0]
         for x in xrange(x0, x1):
             if steep:
                 line_list.append(TileCoord(y, x, zoom))
@@ -66,6 +67,8 @@ class TileCalculator:
                 y = y + ystep
                 error = error + deltax
 
+        # add the final coord, and return the point list
+        line_list.append(tile1)
         return line_list
 
 if __name__ == "__main__":
