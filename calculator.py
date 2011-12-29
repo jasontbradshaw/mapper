@@ -92,22 +92,12 @@ class TileCalculator:
         steep = abs(y1 - y0) > abs(x1 - x0)
 
         if steep:
-            temp = x0
-            x0 = y0
-            y0 = temp
-
-            temp = x1
-            x1 = y1
-            y1 = temp
+            x0, y0 = y0, x0
+            x1, y1 = y1, x1
 
         if x0 > x1:
-            temp = x0
-            x0 = x1
-            x1 = temp
-
-            temp = y0
-            y0 = y1
-            y1 = temp
+            x0, x1 = x1, x0
+            y0, y1 = y1, y0
 
         deltax = x1 - x0
         deltay = abs(y1 - y0)
@@ -124,9 +114,9 @@ class TileCalculator:
         line_list = []
         for x in xrange(x0, x1):
             if steep:
-                line_list.append( TileCoord(y, x, zoom) )
+                line_list.append(TileCoord(y, x, zoom))
             else:
-                line_list.append( TileCoord(x, y, zoom) )
+                line_list.append(TileCoord(x, y, zoom))
 
             error = error - deltay
 
