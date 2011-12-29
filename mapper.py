@@ -9,6 +9,9 @@ import threading
 import time
 import urllib2
 
+import pymongo
+import bson
+
 class Tile:
     """
     A tile representing both Mercator and Google Maps versions of the same info,
@@ -138,6 +141,50 @@ class Tile:
                 other.y == self.y and
                 other.zoom == self.zoom)
 
+class TileStore:
+    """
+    Interface for storing tiles. Provides a single 'store' method that takes
+    tile data and stores it however the class chooses.
+    """
+
+    def store(self, v, tile, tile_data):
+        """
+        Stores a single tile in the store however the class chooses. 'v' is the
+        Google Maps URL 'v' parameter value. tile_data is the image data as
+        downloaded.
+        """
+
+        raise NotImplemented("Implement this in your own subclass!")
+
+class MongoTileStore(TileStore):
+    """
+    A tile store that stores tiles in MongoDB.
+    """
+
+    DB_NAME = "mapper"
+    DB_COLLECTION = "tiles"
+
+    def __init__(self, server="127.0.0.1", port=27017):
+        self.connection = pymongo.Connection(server, port)
+        self.db = self.connection[MongoTileStore.DB_NAME]
+        self.tiles = self.db[MongoTileStore.DB_COLLECTION]
+
+    def store(self, v, tile, tile_data):
+
+        if v not in TileDownloader.TYPE_MAP.values():
+            raise ValueError("Unrecognized v value: " + v)
+
+        tile = {
+            "x": int(tile.x),
+            "y": int(tile.y),
+            "zoom": int(tile.zoom),
+            "v": v,
+            "image": bson.binary.Binary(tile_data),
+            "update_date_utc": int(time.time())
+        }
+
+        self.tiles.insert(tile)
+
 class TileDownloader:
     """Downloads map tiles using multiple threads."""
 
@@ -165,21 +212,11 @@ class TileDownloader:
     # the tile request URL template
     URL_TEMPLATE = "http://mt%d.google.com/vt?v=%s&x=%s&y=%s&z=%s"
 
-    def __init__(self, tiles):
-        raise NotImplemented("Can't instantiate " + self.__class__.__name__)
+    def __init__(self, tile_store):
+        self.tile_store = tile_store
 
-    @staticmethod
-    def download(tile_type, tiles, num_threads=4):
+    def download(self, tile_type, tiles, num_threads=4):
         """Downloads some tiles using the given type."""
-
-        # downloads the tiles in the given queue until no tiles remain
-        def download_tiles(tile_type, tile_queue):
-            while 1:
-                try:
-                    tile = tile_queue.get_nowait()
-                    TileDownloader.download_tile(tile_type, tile)
-                except Queue.Empty:
-                    break
 
         # put all our tiles into a queue so all threads can share them
         tile_queue = Queue.Queue()
@@ -188,17 +225,32 @@ class TileDownloader:
         # assign threads their respective tile lists
         thread_pool = []
         for i in xrange(num_threads):
-            thread = threading.Thread(target=download_tiles,
-                    args=[tile_type, tile_queue])
+            thread = threading.Thread(target=self.download_tiles,
+                    args=(tile_type, tile_queue))
             thread_pool.append(thread)
             thread.start()
 
         # wait for all the threads to finish
         [thread.join() for thread in thread_pool]
 
+    def download_tiles(self, tile_type, tile_queue):
+        """
+        Downloads all the tiles in the given queue for the given type and stores
+        them in the tile store.
+        """
+
+        while 1:
+            try:
+                tile = tile_queue.get_nowait()
+                tile_data = self.download_tile(tile_type, tile)
+                self.tile_store.store(TileDownloader.TYPE_MAP[tile_type],
+                        tile, tile_data)
+            except Queue.Empty:
+                break
+
     @staticmethod
     def download_tile(tile_type, tile):
-        """Downloads a single tile with the given type."""
+        """Downloads a single tile with the given type and stores it."""
 
         # build the request to download this tile
         request = TileDownloader.build_request(tile_type, tile)
@@ -210,46 +262,11 @@ class TileDownloader:
                               str(tile.zoom)))
 
         try:
-            # download and save the tile data
-            tile_data = urllib2.urlopen(request).read()
-
-            # store the tile in the database
-            TileDownloader.insert_tile(tile_type, tile, tile_data)
+            # download the tile and return its data
+            return urllib2.urlopen(request).read()
         except urllib2.HTTPError, e:
             print "Failed to download '" + str(tile) + "'"
             raise e
-
-    @staticmethod
-    def insert_tile(tile_type, tile, image_data, db_name="tiles.db"):
-        """
-        Inserts a tile into the database.
-        """
-
-        if tile_type not in TileDownloader.TYPE_MAP:
-            raise ValueError("Unrecognized tile type: " + tile_type)
-
-        # calculate our shorthand values for insertion
-        x = int(tile.x)
-        y = int(tile.y)
-        zoom = int(tile.zoom)
-        kind = tile_type
-        image = sqlite3.Binary(image_data)
-        update_date = int(time.time())
-
-        # insert our values into the database
-        try:
-            conn = sqlite3.connect(db_name)
-            cursor = conn.cursor()
-
-            # insert the data and commit the transaction
-            cursor.execute("insert into Tile (x, y, zoom, kind, image, "
-                    "update_date) values (?, ?, ?, ?, ?, ?)",
-                    (x, y, zoom, kind, image, update_date))
-            conn.commit()
-        finally:
-            # shut 'er down
-            cursor.close()
-            conn.close()
 
     @staticmethod
     def build_request(tile_type, tile):
@@ -265,7 +282,7 @@ class TileDownloader:
 
         # create the request URL from our template
         url = TileDownloader.URL_TEMPLATE % (random.randint(0, 3), v,
-                str(tile.x), str(tile.y), str(tile.zoom))
+                tile.x, tile.y, tile.zoom)
 
         # spoof the user agent again (just in case this time)
         agent = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
@@ -435,4 +452,5 @@ if __name__ == "__main__":
         Tile.from_google(59906, 107919, 18)
     ]
 
-    TileDownloader.download(TileDownloader.TILE_TYPE_MAP, tiles)
+    downloader = TileDownloader(MongoTileStore())
+    downloader.download(TileDownloader.TILE_TYPE_MAP, tiles)
