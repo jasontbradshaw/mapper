@@ -4,7 +4,9 @@ from math import pi, atan, exp, sin, log
 import os
 import Queue
 import random
+import sqlite3
 import threading
+import time
 import urllib2
 
 class Tile:
@@ -198,14 +200,6 @@ class TileDownloader:
     def download_tile(tile_type, tile):
         """Downloads a single tile with the given type."""
 
-        # create the download directory, if it doesn't exist
-        try:
-            os.mkdir(tile_type)
-        except OSError, e:
-            # ignore 'directory already exists' errors, propogate all others
-            if e.errno != 17:
-                raise e
-
         # build the request to download this tile
         request = TileDownloader.build_request(tile_type, tile)
 
@@ -219,12 +213,43 @@ class TileDownloader:
             # download and save the tile data
             tile_data = urllib2.urlopen(request).read()
 
-            # write the tile to its file
-            with open(fname, "w") as tfile:
-                tfile.write(tile_data)
+            # store the tile in the database
+            TileDownloader.insert_tile(tile_type, tile, tile_data)
         except urllib2.HTTPError, e:
             print "Failed to download '" + str(tile) + "'"
             raise e
+
+    @staticmethod
+    def insert_tile(tile_type, tile, image_data, db_name="tiles.db"):
+        """
+        Inserts a tile into the database.
+        """
+
+        if tile_type not in TileDownloader.TYPE_MAP:
+            raise ValueError("Unrecognized tile type: " + tile_type)
+
+        # calculate our shorthand values for insertion
+        x = int(tile.x)
+        y = int(tile.y)
+        zoom = int(tile.zoom)
+        kind = tile_type
+        image = sqlite3.Binary(image_data)
+        update_date = int(time.time())
+
+        # insert our values into the database
+        try:
+            conn = sqlite3.connect(db_name)
+            cursor = conn.cursor()
+
+            # insert the data and commit the transaction
+            cursor.execute("insert into Tile (x, y, zoom, kind, image, "
+                    "update_date) values (?, ?, ?, ?, ?, ?)",
+                    (x, y, zoom, kind, image, update_date))
+            conn.commit()
+        finally:
+            # shut 'er down
+            cursor.close()
+            conn.close()
 
     @staticmethod
     def build_request(tile_type, tile):
