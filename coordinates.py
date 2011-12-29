@@ -102,5 +102,5 @@ if __name__ == "__main__":
     merc = MercatorCoord(30.2832, -97.7362, 18)
     tile = TileCoord(59902, 107915, 18)
 
-    print merc.convert()
-    print tile.convert()
+    print merc.convert(), tile
+    print tile.convert(), merc
