@@ -312,8 +312,9 @@ class TileCalculator:
         """
         Bresenham's line drawing algorithm, modified to calculate all the tiles
         between two tiles, including endpoints. Returns an iterable containing
-        the calculated tiles. Tiles are not guaranteed to be in any specific
-        order.
+        the calculated tiles in no particular order.
+
+        Reference: http://en.wikipedia.org/wiki/Bresenham's_line_algorithm
         """
 
         # we must be using the same zoom levels for tiles!
@@ -326,44 +327,34 @@ class TileCalculator:
         x1 = tile1.x
         y1 = tile1.y
 
-        steep = abs(y1 - y0) > abs(x1 - x0)
+        # an optimized version of the algorithm (see #Simplification in wiki)
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
 
-        if steep:
-            x0, y0 = y0, x0
-            x1, y1 = y1, x1
+        sx = 1 if x0 < x1 else -1
+        sy = 1 if y0 < y1 else -1
 
-        if x0 > x1:
-            x0, x1 = x1, x0
-            y0, y1 = y1, y0
+        err = dx - dy
 
-        deltax = x1 - x0
-        deltay = abs(y1 - y0)
-        error = deltax / 2
-        y = y0
+        line = []
+        while 1:
+            # add a tile to the line
+            line.append(Tile.from_google(x0, y0, tile0.zoom))
 
-        # set the ystep
-        if y0 < y1:
-            ystep = 1
-        else:
-            ystep = -1
+            if x0 == x1 and y0 == y1:
+                break
 
-        # add all the points to our list
-        line_list = [tile0]
-        for x in xrange(x0, x1):
-            if steep:
-                line_list.append(Tile.from_google(y, x, tile0.zoom))
-            else:
-                line_list.append(Tile.from_google(x, y, tile0.zoom))
+            e2 = 2 * err
 
-            error = error - deltay
+            if e2 > -dy:
+                err -= dy
+                x0 += sx
 
-            if error < 0:
-                y = y + ystep
-                error = error + deltax
+            if e2 < dx:
+                err += dx
+                y0 += sy
 
-        # add the final coord, and return the point list
-        line_list.append(tile1)
-        return line_list
+        return line
 
 if __name__ == "__main__":
 
@@ -377,7 +368,10 @@ if __name__ == "__main__":
         Tile.from_mercator(30.342361542010376, -97.55859375, 18)
     ]
 
-    print len(TileCalculator.get_line(coords[0], coords[1]))
+    line = TileCalculator.get_line(coords[0], coords[1])
+    print len(line)
+    print coords[0] in line
+    print coords[1] in line
 
     # these tiles represent roughly the UT Austin campus
     tiles = [
