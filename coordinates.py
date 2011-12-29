@@ -52,6 +52,23 @@ class MercatorCoord:
     def __str__(self):
         return repr(self)
 
+    def __hash__(self):
+        # hash using our coordinates
+        result = 17
+
+        # we convert all numbers to floats to get better hash results
+        result += hash(self.latitude * 1.0) * 31
+        result += hash(self.longitude * 1.0) * 13
+        result += hash(self.zoom * 1.0) * 11
+
+        return result
+
+    def __eq__(self, other):
+        return (isinstance(other, MercatorCoord) and
+                other.latitude == self.latitude and
+                other.longitude == self.longitude and
+                other.zoom == self.zoom)
+
 class TileCoord:
     """A Google Maps tile coordinate."""
 
@@ -97,6 +114,23 @@ class TileCoord:
 
     def __str__(self):
         return repr(self)
+
+    def __hash__(self):
+        # hash using our coordinates
+        result = 43
+
+        # we convert all numbers to floats to get better hash results
+        result += hash(self.x * 1.0) * 13
+        result += hash(self.y * 1.0) * 11
+        result += hash(self.zoom * 1.0) * 31
+
+        return result
+
+    def __eq__(self, other):
+        return (isinstance(other, TileCoord) and
+                other.x == self.x and
+                other.y == self.y and
+                other.zoom == self.zoom)
 
 if __name__ == "__main__":
     merc = MercatorCoord(30.2832, -97.7362, 18)
