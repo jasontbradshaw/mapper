@@ -65,7 +65,7 @@ class TileCalculator:
         # create the empty grid and intialize it to 'False'
         grid = []
         for i in xrange(grid_width):
-            grid.append( [False] * grid_height )
+            grid.append([False] * grid_height)
 
         return grid
 
