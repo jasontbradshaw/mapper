@@ -11,10 +11,26 @@ from coordinates import MercatorCoord, TileCoord
 class TileDownloader:
     """Downloads map tiles using multiple threads."""
 
+    # valid tile types available for download
+    # NOTE: only map, satellite (normal/plain) and overlay work consistently
     TILE_TYPE_MAP = "map"
-    TILE_TYPE_OVERLAY = "overlay"
     TILE_TYPE_TERRAIN = "terrain"
+    TILE_TYPE_TERRAIN_PLAIN = "terrain_plain"
+    TILE_TYPE_OVERLAY = "overlay"
     TILE_TYPE_SATELLITE = "satellite"
+    TILE_TYPE_SATELLITE_PLAIN = "sattelite_plain"
+    TILE_TYPE_BIKE = "bike"
+
+    # all the tile types mapped to their url letter
+    TYPE_MAP = {
+        TILE_TYPE_MAP: "m",
+        TILE_TYPE_TERRAIN: "p",
+        TILE_TYPE_TERRAIN_PLAIN: "t",
+        TILE_TYPE_OVERLAY: "h",
+        TILE_TYPE_SATELLITE: "y",
+        TILE_TYPE_SATELLITE_PLAIN: "s",
+        TILE_TYPE_BIKE: "r"
+    }
 
     def __init__(self, tiles):
         raise NotImplemented("Can't instantiate " + self.__class__.__name__)
@@ -63,26 +79,10 @@ class TileDownloader:
         url = "http://mt%d.google.com/vt/v=" % random.randint(0, 3)
 
         # specify type of tiles we want
-        # map
-        if tile_type == TileDownloader.TILE_TYPE_MAP:
-            url += "m"
-
-        # terrain
-        # TODO: make terrain downloading work at all
-        elif tile_type == TileDownloader.TILE_TYPE_TERRAIN:
-            url += "p"
-
-        # overlay
-        elif tile_type == TileDownloader.TILE_TYPE_OVERLAY:
-            url += "h"
-
-        # satellite
-        elif tile_type == TileDownloader.TILE_TYPE_SATELLITE:
-            url += "y"
-
-        else:
-            # simple error report, download should fail with an HTTPError
+        if tile_type not in TileDownloader.TYPE_MAP:
             print "Tile type " + tile_type + "' was not recognized."
+        else:
+            url += TileDownloader.TYPE_MAP[tile_type]
 
         # get ready for next parameters...
         url += "&"
@@ -95,7 +95,7 @@ class TileDownloader:
         url += "z=" + str(tile.zoom)
 
         # spoof the user agent again (just in case this time)
-        agent  = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
+        agent = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
         agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
         agent += "Chrome/4.0.249.30 Safari/532.5"
 
