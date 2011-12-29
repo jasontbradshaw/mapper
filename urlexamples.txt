@@ -36,3 +36,17 @@ overlay:
 
 map:
   http://mt0.google.com/vt/x=163&y=394&z=10
+
+VALID 'v' VALUES:
+  m: map
+  p: terrain
+  t: terrain without overlays
+  h: overlay with transparent background
+  y: sattelite
+  s: sattelite without overlays
+  r: bike
+
+UPDATE:
+It appears that mt[-0].google.com serves all types of maps now, even though the
+others sometimes work. However, not all 'v' values work for all zoom
+levels and regions.
