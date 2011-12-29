@@ -127,7 +127,7 @@ class Tile:
 
         return result * 7
 
-    def __eq__(self):
+    def __eq__(self, other):
         return (isinstance(other, Tile) and
                 other.x == self.x and
                 other.y == self.y and
