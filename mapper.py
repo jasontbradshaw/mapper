@@ -157,6 +157,9 @@ class TileDownloader:
         TILE_TYPE_BIKE: "r"
     }
 
+    # the tile request URL template
+    URL_TEMPLATE = "http://mt%d.google.com/vt?v=%s&x=%s&y=%s&z=%s"
+
     def __init__(self, tiles):
         raise NotImplemented("Can't instantiate " + self.__class__.__name__)
 
@@ -200,34 +203,10 @@ class TileDownloader:
             if e.errno != 17:
                 raise e
 
-        # fill in a random server number [0-3]
-        url = "http://mt%d.google.com/vt/v=" % random.randint(0, 3)
+        # build the request to download this tile
+        request = TileDownloader.build_request(tile_type, tile)
 
-        # specify type of tiles we want
-        if tile_type not in TileDownloader.TYPE_MAP:
-            print "Tile type " + tile_type + "' was not recognized."
-        else:
-            url += TileDownloader.TYPE_MAP[tile_type]
-
-        # get ready for next parameters...
-        url += "&"
-
-        # insert coordinates and zoom from the given tile
-        url += "x=" + str(tile.x)
-        url += "&"
-        url += "y=" + str(tile.y)
-        url += "&"
-        url += "z=" + str(tile.zoom)
-
-        # spoof the user agent again (just in case this time)
-        agent = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
-        agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
-        agent += "Chrome/4.0.249.30 Safari/532.5"
-
-        request = urllib2.Request(url, headers={"User-Agent": agent})
-
-        # save the tile to a file (in a style, by the while...).
-        # overwrites previous content without asking
+        # save the tile to a file, overwriting previous content without asking
         fname = os.path.join(str(tile_type),
                              (str(tile.x) + "-" +
                               str(tile.y) + "-" +
@@ -241,8 +220,31 @@ class TileDownloader:
             with open(fname, "w") as tfile:
                 tfile.write(tile_data)
         except urllib2.HTTPError, e:
-            print "Failed to download '" + str(tile) + "', aborting."
+            print "Failed to download '" + str(tile) + "'"
             raise e
+
+    @staticmethod
+    def build_request(tile_type, tile):
+        """
+        Creates a download request for a tile.
+        """
+
+        # calculate type of tiles we want
+        if tile_type in TileDownloader.TYPE_MAP:
+            v = TileDownloader.TYPE_MAP[tile_type]
+        else:
+            raise ValueError("Unrecognized tile type: " + tile_type)
+
+        # create the request URL from our template
+        url = TileDownloader.URL_TEMPLATE % (random.randint(0, 3), v,
+                str(tile.x), str(tile.y), str(tile.zoom))
+
+        # spoof the user agent again (just in case this time)
+        agent = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
+        agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
+        agent += "Chrome/4.0.249.30 Safari/532.5"
+
+        return urllib2.Request(url, headers={"User-Agent": agent})
 
 class TileCalculator:
     """
