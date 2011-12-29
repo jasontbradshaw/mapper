@@ -1,75 +1,17 @@
 #!/usr/bin/env python
 
-import math
-
 from coordinates import MercatorCoord, TileCoord
 
 class TileCalculator:
     """
     Calculates all the tiles in a region from the specified zoom level down.
-    Needs a list containing all the in-order vertices of a polygon to do so.
     """
 
-    def __init__(self, merc_coords, start_zoom):
-        """Convert the MercatorCoords to TileCoords."""
+    def __init__(self):
+        raise NotImplemented("Can't instantiate " + self.__class__.__name__)
 
-        assert len(merc_coords) > 0
-
-        # the highest zoom level we sill start from, moving downward
-        self._start_zoom = start_zoom
-
-        self._merc_coords = merc_coords
-
-    def calculate(self):
-        """Calculate the interior tiles from the given vertices."""
-
-        grid = make_grid(self._start_zoom)
-
-        # calculate the cells we need to download by going though every zoom
-        # level from the starting zoom to the largest possible
-        for zoom in xrange(zoom, 19):
-            pass
-
-    def make_grid(self, zoom):
-        """Create an appropriately sized grid for a given zoom level."""
-
-        # convert the first tile so we can set the min/max vars from something
-        first_tile = self._merc_coords[0]
-        first_tile.zoom = zoom
-        first_tile = first_tile.convert()
-
-        # intialize the min/max variables so we can calculate them for real
-        max_x = first_tile.x
-        max_y = first_tile.y
-        min_x = max_x
-        min_y = max_y
-
-        # find the 'sides' of the grid by their respective x/y values and
-        # record them so we can size and create our grid
-        for coord in self._merc_coords[1:]: # skip the first one (we did it)
-            coord.zoom = zoom
-
-            # make it into a tile coord
-            coord = coord.convert()
-
-            # find the sides of the grid
-            max_x = max(coord.x, max_x)
-            max_y = max(coord.y, max_y)
-            min_x = min(coord.x, min_x)
-            min_y = min(coord.y, min_y)
-
-        # calculate the grid dimensions, making sure it's at least 1x1
-        grid_width = max(max_x - min_x, 1)
-        grid_height = max(max_y - min_y, 1)
-
-        # create the empty grid and intialize it to 'False'
-        grid = []
-        for i in xrange(grid_width):
-            grid.append([False] * grid_height)
-
-        return grid
-
-    def get_line(self, merc0, merc1, zoom):
+    @staticmethod
+    def get_line(merc0, merc1, zoom):
         """
         Bresenham's line drawing algorithm, modified to yield all the
         tiles between merc0 and merc1 at a certain zoom (excluding endpoints).
@@ -133,6 +75,4 @@ if __name__ == "__main__":
         MercatorCoord(30.342361542010376, -97.55859375, 16)
     ]
 
-    t = TileCalculator(coords, 16)
-
-    print len(t.get_line(coords[0], coords[1], 18))
+    print len(TileCalculator.get_line(coords[0], coords[1], 18))
