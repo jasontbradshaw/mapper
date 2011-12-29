@@ -282,15 +282,15 @@ class TileCalculator:
         left = None
         for vertex in result:
             # left
-            if vertex.x < left.x:
+            if left is None or vertex.x < left.x:
                 left = vertex
 
             # top
-            if vertex.y < top.y:
+            if top is None or vertex.y < top.y:
                 top = vertex
 
             # bottom
-            if vertex.y > bottom.y:
+            if bottom is None or vertex.y > bottom.y:
                 bottom = vertex
 
         # add lines between consecutive vertices
