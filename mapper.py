@@ -13,6 +13,9 @@ class Tile:
     a point/tile on the globe. This is not meant to be mutable, and is only a
     container for the values initially supplied. Changing values after
     initialization will NOT update other values!
+
+    Conversion formulae gleaned from Jeremy R. Geerdes' post:
+      http://groups.google.com/group/google-maps-api/msg/7a0aba451045ed94
     """
 
     def __init__(self, kind, a, b, zoom, tile_size):
@@ -254,6 +257,7 @@ class TileCalculator:
     def __init__(self):
         raise NotImplemented("Can't instantiate " + self.__class__.__name__)
 
+    @staticmethod
     def get_area(vertices):
         """
         Gets all the tiles in an area and returns them as a set. Vertices are
@@ -306,9 +310,10 @@ class TileCalculator:
     @staticmethod
     def get_line(tile0, tile1):
         """
-        Bresenham's line drawing algorithm, modified to yield all the
-        tiles between two tiles at a certain zoom, including endpoints.
-        Tiles are not guaranteed to be in any specific order.
+        Bresenham's line drawing algorithm, modified to calculate all the tiles
+        between two tiles, including endpoints. Returns an iterable containing
+        the calculated tiles. Tiles are not guaranteed to be in any specific
+        order.
         """
 
         # we must be using the same zoom levels for tiles!
