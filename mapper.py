@@ -272,18 +272,19 @@ class TileCalculator:
         if not all([v.zoom == vertices[0].zoom for v in vertices]):
             raise ValueError("All vertices must have the same zoom level.")
 
-        # initialize the set with our initial vertices
-        result = set(vertices)
-
-        # find the top, bottom, and left-most vertices (y increases down, x
-        # increases right).
+        # find the furthest vertices in every direction
         top = None
         bottom = None
         left = None
-        for vertex in result:
+        right = None
+        for vertex in vertices:
             # left
             if left is None or vertex.x < left.x:
                 left = vertex
+
+            # right
+            if right is None or vertex.x > right.x:
+                right = vertex
 
             # top
             if top is None or vertex.y < top.y:
@@ -292,6 +293,9 @@ class TileCalculator:
             # bottom
             if bottom is None or vertex.y > bottom.y:
                 bottom = vertex
+
+        # initialize the set with our initial vertices
+        result = set(vertices)
 
         # add lines between consecutive vertices
         prev_vertex = tile_vertices[0]
