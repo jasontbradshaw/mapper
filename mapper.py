@@ -23,6 +23,9 @@ class Tile:
       http://groups.google.com/group/google-maps-api/msg/7a0aba451045ed94
     """
 
+    # the default size of square tiles
+    DEFAULT_TILE_SIZE = 256
+
     def __init__(self, kind, a, b, zoom, tile_size):
         """
         This should only really be called by the static constructor methods. a
@@ -106,18 +109,24 @@ class Tile:
             raise ValueError("Unrecognized tile kind: " + kind)
 
     @staticmethod
-    def from_mercator(latitude, longitude, zoom, tile_size=256):
+    def from_mercator(latitude, longitude, zoom, tile_size=None):
         """
         Creates a tile from Mercator coordinates and returns it.
         """
 
+        if tile_size is None:
+            tile_size = Tile.DEFAULT_TILE_SIZE
+
         return Tile("mercator", latitude, longitude, zoom, tile_size)
 
     @staticmethod
-    def from_google(x, y, zoom, tile_size=256):
+    def from_google(x, y, zoom, tile_size=None):
         """
         Creates a tile from Google coordinates and returns it.
         """
+
+        if tile_size is None:
+            tile_size = Tile.DEFAULT_TILE_SIZE
 
         return Tile("google", x, y, zoom, tile_size)
 
@@ -140,6 +149,21 @@ class Tile:
                 other.x == self.x and
                 other.y == self.y and
                 other.zoom == self.zoom)
+
+    def __repr__(self):
+        result = self.__class__.__name__
+        result += "("
+        result += ", ".join(map(str, [self.x, self.y, self.zoom]))
+
+        if self.tile_size != Tile.DEFAULT_TILE_SIZE:
+            result += ", tile_size=" + str(self.tile_size)
+
+        result += ")"
+
+        return result
+
+    def __str__(self):
+        return repr(self)
 
 class TileStore:
     """
