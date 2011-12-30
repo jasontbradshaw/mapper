@@ -204,6 +204,8 @@ class MongoTileStore(TileStore):
             "zoom": int(tile.zoom),
             "v": v,
             "image": bson.binary.Binary(tile_data),
+
+            # keep the update date so we could eventually re-download old tiles
             "update_date_utc": int(time.time())
         }
 
