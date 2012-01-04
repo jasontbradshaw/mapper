@@ -228,7 +228,8 @@ class TileStore:
 
     def store(self, tile_type, tile, tile_data):
         """
-        Stores a single tile in the store however the class chooses.
+        Stores a single tile in the store however the class chooses. This method
+        should be thread-safe, as no attempts are made to call it synchronously.
         """
 
         raise NotImplemented("Implement this in your own subclass!")
