@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
+import collections
 from math import pi, atan, exp, sin, log
 import os
-import Queue
+import Queue as queue
 import random
-import sqlite3
 import threading
 import time
 import urllib2
@@ -23,8 +23,27 @@ class Tile:
       http://groups.google.com/group/google-maps-api/msg/7a0aba451045ed94
     """
 
+    # a simple class for tile types with a descriptive name and a URL 'v' value
+    TileType = collections.namedtuple("TileType", ["name", "v"])
+
+    # possible kinds of tile for initialization
+    KIND_GOOGLE = "google"
+    KIND_MERCATOR = "mercator"
+
+    # our various tile types
+    TYPE_MAP = TileType("Map", "m")
+    TYPE_TERRAIN = TileType("Terrain", "p")
+    TYPE_TERRAIN_PLAIN = TileType("Terrain (plain)", "t")
+    TYPE_OVERLAY = TileType("Overlay", "h")
+    TYPE_SATELLITE = TileType("Satellite", "y")
+    TYPE_SATELLITE_PLAIN = TileType("Sattelite (plain)", "s")
+    TYPE_BIKE = TileType("Bike", "r")
+
     # the default size of square tiles
     DEFAULT_TILE_SIZE = 256
+
+    # a URL template for downloading the tile from Google
+    URL_TEMPLATE = "http://mt%d.google.com/vt?v=%s&x=%s&y=%s&z=%s"
 
     def __init__(self, kind, a, b, zoom, tile_size):
         """
@@ -36,77 +55,90 @@ class Tile:
         x and y values.
         """
 
+        # update internal values from the given information
+        if kind == Tile.KIND_MERCATOR:
+            self.init_from_mercator(a, b, zoom, tile_size)
+        elif kind == Tile.KIND_GOOGLE:
+            self.init_from_google(a, b, zoom, tile_size)
+        else:
+            raise ValueError("Unrecognized tile kind: " + kind)
+
+    def init_from_mercator(self, latitude, longitude, zoom, tile_size):
+        """
+        Initializes this tile from a latitude, longitude, zoom, and tile size.
+        """
+
         # zoom must be positive
         assert zoom >= 0
-
-        # kept for reference, the size of tiles in pixels
-        self.tile_size = tile_size
 
         # shared by both kinds of tile
         self.zoom = zoom
 
-        # the latitude, longitude, x, and y of this tile
-        self.latitude = None
-        self.longitude = None
-        self.x = None
-        self.y = None
+        # kept for reference, the size of this tile in pixels
+        self.tile_size = tile_size
 
-        # update internal values from the given information
-        if kind == "mercator":
-            self.latitude = a
-            self.longitude = b
+        self.latitude = latitude
+        self.longitude = longitude
 
-            # calculate x and y coords from latitude and longitude
-            lat = self.latitude
-            lng = self.longitude
+        # calculate x and y coords from latitude and longitude
+        lat = latitude
+        lng = longitude
 
-            # absolute pixel coordinates
-            x_abs = ( round(tile_size * (2 ** (zoom - 1))) +
-                      (lng * ((tile_size * (2 ** zoom)) / 360)) )
+        # absolute pixel coordinates
+        x_abs = ( round(tile_size * (2 ** (zoom - 1))) +
+                  (lng * ((tile_size * (2 ** zoom)) / 360)) )
 
-            y_exp = sin( (lat * pi) / 180 )
-            y_exp = max(-0.9999, y_exp) # cap at -0.9999
-            y_exp = min(0.9999, y_exp) # cap at 0.9999
+        y_exp = sin( (lat * pi) / 180 )
+        y_exp = max(-0.9999, y_exp) # cap at -0.9999
+        y_exp = min(0.9999, y_exp) # cap at 0.9999
 
-            y_abs = ( round(tile_size * (2 ** (zoom - 1))) +
-                  ( (0.5 * log((1 + y_exp) / (1 - y_exp))) *
-                    ((-tile_size * (2 ** zoom)) / (2 * pi)) ) )
+        y_abs = ( round(tile_size * (2 ** (zoom - 1))) +
+              ( (0.5 * log((1 + y_exp) / (1 - y_exp))) *
+                ((-tile_size * (2 ** zoom)) / (2 * pi)) ) )
 
-            # tile coordinates (tile-level resolution)
-            self.x = int(x_abs / tile_size)
-            self.y = int(y_abs / tile_size)
+        # tile coordinates (tile-level resolution)
+        self.x = int(x_abs / tile_size)
+        self.y = int(y_abs / tile_size)
 
-            # TODO: relative coordinates (pixel resolution, relative to tile)
-            #x_rel = x % tile_size
-            #y_rel = y % tile_size
+        # TODO: relative coordinates (pixel resolution, relative to tile)
+        #x_rel = x % tile_size
+        #y_rel = y % tile_size
 
-        elif kind == "google":
-            self.x = a
-            self.y = b
+    def init_from_google(self, x, y, zoom, tile_size):
+        """
+        Initializes this tile from an x, y, zoom, and tile size.
+        """
 
-            # calculate latitude and longitude for upper-left corner of the tile
-            x = self.x
-            y = self.y
+        # zoom must be positive
+        assert zoom >= 0
 
-            longitude = ( ( (x * tile_size) - (tile_size * (2 ** (zoom - 1))) ) /
-                          ( (tile_size * (2 ** zoom)) / 360.0 ) )
+        # shared by both kinds of tile
+        self.zoom = zoom
 
-            # normalize longitude
-            while longitude > 180:
-                longitude -= 360
+        # kept for reference, the size of this tile in pixels
+        self.tile_size = tile_size
 
-            while longitude < -180:
-                logitude += 360
+        self.x = x
+        self.y = y
 
-            lat_exp = ( ( (y * 256) - (256 * (2 ** (zoom - 1))) ) /
-                        ( (-256 * (2 ** zoom)) / (2 * pi) ) )
-            latitude = ( ( (2 * atan(exp(lat_exp))) - (pi / 2) ) / (pi / 180) )
+        # calculate latitude and longitude for upper-left corner of the tile
+        longitude = ( ( (x * tile_size) - (tile_size * (2 ** (zoom - 1))) ) /
+                      ( (tile_size * (2 ** zoom)) / 360.0 ) )
 
-            latitude = max(-90.0, latitude) # cap at -90 degrees
-            longitude = min(90.0, longitude) # cap at 90 degrees
+        # normalize longitude
+        while longitude > 180:
+            longitude -= 360
 
-        else:
-            raise ValueError("Unrecognized tile kind: " + kind)
+        while longitude < -180:
+            logitude += 360
+
+        lat_exp = ( ( (y * 256) - (256 * (2 ** (zoom - 1))) ) /
+                    ( (-256 * (2 ** zoom)) / (2 * pi) ) )
+        latitude = ( ( (2 * atan(exp(lat_exp))) - (pi / 2) ) / (pi / 180) )
+
+        # cap final values at their logical extremes
+        self.latitude = max(-90.0, latitude)
+        self.longitude = min(90.0, longitude)
 
     @staticmethod
     def from_mercator(latitude, longitude, zoom, tile_size=None):
@@ -117,7 +149,7 @@ class Tile:
         if tile_size is None:
             tile_size = Tile.DEFAULT_TILE_SIZE
 
-        return Tile("mercator", latitude, longitude, zoom, tile_size)
+        return Tile(Tile.KIND_MERCATOR, latitude, longitude, zoom, tile_size)
 
     @staticmethod
     def from_google(x, y, zoom, tile_size=None):
@@ -128,7 +160,31 @@ class Tile:
         if tile_size is None:
             tile_size = Tile.DEFAULT_TILE_SIZE
 
-        return Tile("google", x, y, zoom, tile_size)
+        return Tile(Tile.KIND_GOOGLE, x, y, zoom, tile_size)
+
+    def download(self, tile_type):
+        """
+        Downloads the image data for this tile and returns it as a binary
+        string, or returns None if no data could be downloaded.
+        """
+
+        # create the request URL from the template
+        url = Tile.URL_TEMPLATE % (random.randint(0, 3),
+                tile_type.v, self.x, self.y, self.zoom)
+
+        # spoof the user agent so google doesn't ban us
+        agent = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
+        agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
+        agent += "Chrome/4.0.249.30 Safari/532.5"
+
+        # build the request to download this tile
+        request = urllib2.Request(url, headers={"User-Agent": agent})
+
+        try:
+            # download the tile and return its image data
+            return urllib2.urlopen(request).read()
+        except urllib2.HTTPError, e:
+            return None
 
     def __hash__(self):
         """
@@ -150,20 +206,19 @@ class Tile:
                 other.y == self.y and
                 other.zoom == self.zoom)
 
-    def __repr__(self):
-        result = self.__class__.__name__
-        result += "("
-        result += ", ".join(map(str, [self.x, self.y, self.zoom]))
-
-        if self.tile_size != Tile.DEFAULT_TILE_SIZE:
-            result += ", tile_size=" + str(self.tile_size)
-
-        result += ")"
-
-        return result
-
     def __str__(self):
         return repr(self)
+
+    def __repr__(self):
+        r = self.__class__.__name__ + "("
+        r += ", ".join(map(str, [self.x, self.y, self.zoom]))
+
+        if self.tile_size != Tile.DEFAULT_TILE_SIZE:
+            r += ", tile_size=" + str(self.tile_size)
+
+        r += ")"
+
+        return r
 
 class TileStore:
     """
@@ -171,11 +226,9 @@ class TileStore:
     tile data and stores it however the class chooses.
     """
 
-    def store(self, v, tile, tile_data):
+    def store(self, tile_type, tile, tile_data):
         """
-        Stores a single tile in the store however the class chooses. 'v' is the
-        Google Maps URL 'v' parameter value. tile_data is the image data as
-        downloaded.
+        Stores a single tile in the store however the class chooses.
         """
 
         raise NotImplemented("Implement this in your own subclass!")
@@ -191,61 +244,52 @@ class MongoTileStore(TileStore):
     def __init__(self, server="127.0.0.1", port=27017):
         self.connection = pymongo.Connection(server, port)
         self.db = self.connection[MongoTileStore.DB_NAME]
-        self.tiles = self.db[MongoTileStore.DB_COLLECTION]
+        self.collection = self.db[MongoTileStore.DB_COLLECTION]
 
-    def store(self, v, tile, tile_data):
+    def store(self, tile_type, tile, tile_data):
+        assert isinstance(tile_type, Tile.TileType)
+        assert isinstance(tile, Tile)
+        assert isinstance(tile_data, basestring)
 
-        if v not in TileDownloader.TYPE_MAP.values():
-            raise ValueError("Unrecognized v value: " + v)
-
+        # start with the base information to see if we already have this tile
         tile = {
+            # coordinates
             "x": int(tile.x),
             "y": int(tile.y),
             "zoom": int(tile.zoom),
-            "v": v,
-            "image": bson.binary.Binary(tile_data),
 
-            # keep the update date so we could eventually re-download old tiles
-            "update_date_utc": int(time.time())
+            # tile type (we're expecting a collections.namedtuple)
+            "tile_type": tile_type._asdict()
         }
 
-        self.tiles.insert(tile)
+        # update the id of our 'new' tile to match the stored one
+        stored_tile = self.collection.find_one(tile)
+        if stored_tile is not None:
+            tile["_id"] = stored_tile["_id"]
+
+        # add specific data for this insert/update
+        tile.update({
+            # image data as binary
+            "image_data": bson.binary.Binary(tile_data),
+
+            # update date, for eventually re-downloading 'old' tiles
+            "update_date": int(time.time())
+        })
+
+        # add our tile to the collection, updating if the '_id' is set
+        self.collection.save(tile)
 
 class TileDownloader:
     """Downloads map tiles using multiple threads."""
 
-    # valid tile types available for download
-    # NOTE: only map, satellite (normal/plain) and overlay work consistently
-    TILE_TYPE_MAP = "map"
-    TILE_TYPE_TERRAIN = "terrain"
-    TILE_TYPE_TERRAIN_PLAIN = "terrain_plain"
-    TILE_TYPE_OVERLAY = "overlay"
-    TILE_TYPE_SATELLITE = "satellite"
-    TILE_TYPE_SATELLITE_PLAIN = "sattelite_plain"
-    TILE_TYPE_BIKE = "bike"
-
-    # all the tile types mapped to their url letter
-    TYPE_MAP = {
-        TILE_TYPE_MAP: "m",
-        TILE_TYPE_TERRAIN: "p",
-        TILE_TYPE_TERRAIN_PLAIN: "t",
-        TILE_TYPE_OVERLAY: "h",
-        TILE_TYPE_SATELLITE: "y",
-        TILE_TYPE_SATELLITE_PLAIN: "s",
-        TILE_TYPE_BIKE: "r"
-    }
-
-    # the tile request URL template
-    URL_TEMPLATE = "http://mt%d.google.com/vt?v=%s&x=%s&y=%s&z=%s"
-
     def __init__(self, tile_store):
         self.tile_store = tile_store
 
-    def download(self, tile_type, tiles, num_threads=4):
+    def download(self, tile_type, tiles, num_threads=10):
         """Downloads some tiles using the given type."""
 
         # put all our tiles into a queue so all threads can share them
-        tile_queue = Queue.Queue()
+        tile_queue = queue.Queue()
         [tile_queue.put(tile) for tile in tiles]
 
         # assign threads their respective tile lists
@@ -268,54 +312,15 @@ class TileDownloader:
         while 1:
             try:
                 tile = tile_queue.get_nowait()
-                tile_data = self.download_tile(tile_type, tile)
-                self.tile_store.store(TileDownloader.TYPE_MAP[tile_type],
-                        tile, tile_data)
-            except Queue.Empty:
+                tile_data = tile.download(tile_type)
+
+                if tile_data is None:
+                    raise IOError("Could not download tile " + str(tile) +
+                            " as type " + tile_type)
+
+                self.tile_store.store(tile_type, tile, tile_data)
+            except queue.Empty:
                 break
-
-    @staticmethod
-    def download_tile(tile_type, tile):
-        """Downloads a single tile with the given type and stores it."""
-
-        # build the request to download this tile
-        request = TileDownloader.build_request(tile_type, tile)
-
-        # save the tile to a file, overwriting previous content without asking
-        fname = os.path.join(str(tile_type),
-                             (str(tile.x) + "-" +
-                              str(tile.y) + "-" +
-                              str(tile.zoom)))
-
-        try:
-            # download the tile and return its data
-            return urllib2.urlopen(request).read()
-        except urllib2.HTTPError, e:
-            print "Failed to download '" + str(tile) + "'"
-            raise e
-
-    @staticmethod
-    def build_request(tile_type, tile):
-        """
-        Creates a download request for a tile.
-        """
-
-        # calculate type of tiles we want
-        if tile_type in TileDownloader.TYPE_MAP:
-            v = TileDownloader.TYPE_MAP[tile_type]
-        else:
-            raise ValueError("Unrecognized tile type: " + tile_type)
-
-        # create the request URL from our template
-        url = TileDownloader.URL_TEMPLATE % (random.randint(0, 3), v,
-                tile.x, tile.y, tile.zoom)
-
-        # spoof the user agent again (just in case this time)
-        agent = "Mozilla/5.0 (X11; U; Linux x86_64; en-US) "
-        agent += "AppleWebKit/532.5 (KHTML, like Gecko) "
-        agent += "Chrome/4.0.249.30 Safari/532.5"
-
-        return urllib2.Request(url, headers={"User-Agent": agent})
 
 class TileCalculator:
     """
@@ -329,7 +334,10 @@ class TileCalculator:
     def get_area(vertices):
         """
         Gets all the tiles in an area and returns them as a set. Vertices are
-        assumed to be in-order (CW/CCW and starting vertex are irrelevant).
+        assumed to be in-order (CW/CCW and starting vertex are irrelevant), and
+        the final vertex is assumed to be connected to the first vertex. If the
+        polygon described by the given vertices is complex (has mutliple inner
+        regions), only the first one found will be filled.
         """
 
         # don't do calculations if we weren't given any vertices
@@ -340,7 +348,8 @@ class TileCalculator:
         if not all([v.zoom == vertices[0].zoom for v in vertices]):
             raise ValueError("All vertices must have the same zoom level.")
 
-        # find the furthest vertices in every direction
+        # find the furthest vertices in every direction so we know how far we
+        # must cast rays to find edges.
         top = None
         bottom = None
         left = None
@@ -366,17 +375,73 @@ class TileCalculator:
         result = set(vertices)
 
         # add lines between consecutive vertices
-        prev_vertex = tile_vertices[0]
-        for vertex in tile_vertices[1:]:
+        prev_vertex = vertices[0]
+        for vertex in vertices[1:]:
             result.update(TileCalculator.get_line(prev_vertex, vertex))
             prev_vertex = vertex
 
-        # cast rays left to right, top to bottom, adding tiles that lie within
-        # the polygon (calculated using edge intersection counts).
-        for y in xrange(top.y, bottom.y):
-            # TODO: handle corners!
-            pass
+        # connect the last vertex to the first
+        result.update(TileCalculator.get_line(prev_vertex, vertices[0]))
 
+        # find the first inner surface of the polygon and fill from there,
+        # casting rays top-to-bottom, left-to-right, starting slightly outside
+        # the furthest boundaries and continuing slightly past them.
+        inner_point = None
+
+        # to avoid overhead, we simply modify a point in-situ since it only gets
+        # hashed by x/y/zoom anyhow.
+        point = Tile.from_google(0, 0, vertices[0].zoom)
+
+        for y in xrange(top.y - 1, bottom.y + 2):
+            # did we just exit a line?
+            last_was_filled = False
+
+            for x in xrange(left.x - 1, right.x + 2):
+                # set up the point with the current coordinates
+                point.x = x
+                point.y = y
+
+                # we found our inner point
+                if point not in result and last_was_filled:
+
+                    # TODO: cast rays up, down, and right to ensure we're
+                    # definitively inside the polygon. alternatively, use corner
+                    # detection algorithms.
+                    inner_point = point
+                    break
+
+                # don't allow consecutive points (we're on a line or similar)
+                if point in result and last_was_filled:
+                    break
+
+                # track whether the last point we saw was on a line
+                last_was_filled = point in result
+
+            # give up once the inner loop found an inner point
+            if inner_point is not None:
+                break
+
+        # if the polygon has no inner surfaces, it was a 'line', so don't fill
+        if inner_point is None:
+            return result
+
+        # four-way flood-fill from our inner point
+        point_stack = [inner_point]
+        while len(point_stack) > 0:
+            point = point_stack.pop()
+
+            # fill the point if it wasn't filled already
+            if point not in result:
+                result.add(point)
+
+                # add the point's neighbors
+                north = Tile.from_google(point.x, point.y - 1, point.zoom)
+                south = Tile.from_google(point.x, point.y + 1, point.zoom)
+                east = Tile.from_google(point.x + 1, point.y, point.zoom)
+                west = Tile.from_google(point.x - 1, point.y, point.zoom)
+                point_stack.extend((north, south, east, west))
+
+        # return our filled polygon
         return result
 
     @staticmethod
@@ -429,21 +494,20 @@ class TileCalculator:
         return line
 
 if __name__ == "__main__":
+    import pdb
 
     tile = Tile.from_mercator(30.2832, -97.7362, 18)
     print "Mercator:", tile.latitude, tile.longitude, tile.zoom
     print "Google:", tile.x, tile.y, tile.zoom
 
-    coords = [
-        Tile.from_mercator(30.23029793153857, -97.82398223876953, 18),
-        Tile.from_mercator(30.36665473179746, -97.78861999511719, 18),
-        Tile.from_mercator(30.342361542010376, -97.55859375, 18)
+    corners = [
+        Tile.from_google(59902, 107915, 18),
+        Tile.from_google(59902, 107919, 18),
+        Tile.from_google(59906, 107919, 18)
     ]
 
-    line = TileCalculator.get_line(coords[0], coords[1])
-    print len(line)
-    print coords[0] in line
-    print coords[1] in line
+    #area = TileCalculator.get_area(corners)
+    #print len(area)
 
     # these tiles represent roughly the UT Austin campus
     tiles = [
@@ -479,4 +543,4 @@ if __name__ == "__main__":
     ]
 
     downloader = TileDownloader(MongoTileStore())
-    downloader.download(TileDownloader.TILE_TYPE_MAP, tiles)
+    downloader.download(Tile.TYPE_MAP, tiles)
