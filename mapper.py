@@ -211,10 +211,10 @@ class Tile:
 
     def __repr__(self):
         r = self.__class__.__name__ + "("
-        r += ", ".join(map(str, [self.x, self.y, self.zoom]))
+        r += ", ".join(map(repr, [self.x, self.y, self.zoom]))
 
         if self.tile_size != Tile.DEFAULT_TILE_SIZE:
-            r += ", tile_size=" + str(self.tile_size)
+            r += ", tile_size=" + repr(self.tile_size)
 
         r += ")"
 
@@ -233,6 +233,43 @@ class TileStore:
         """
 
         raise NotImplemented("Implement this in your own subclass!")
+
+class FileTileStore:
+    """
+    Stores tiles in a directory on the local file system.
+    """
+
+    def __init__(self, directory=time.strftime("tiles_%Y%m%d_%H%M%S")):
+        """
+        Creates a tile store that writes files to a given directory. If the
+        directory doesn't exist, it creates it. A default time-based directory
+        name is used if none is provided.
+        """
+
+        self.directory = os.path.abspath(directory)
+
+        # ensure the given directory exists
+        try:
+            os.mkdir(self.directory)
+        except OSError, e:
+            # ignore 'already exists' errors, but raise all others
+            if e.errno != 17:
+                raise e
+
+    def store(self, tile_type, tile, tile_data):
+        """
+        Writes files to the given directory.
+        """
+
+        # build a file name containing descriptive data
+        fname = (tile_type.v + "_" +
+                str(tile.x) + "-" +
+                str(tile.y) + "-" +
+                str(tile.zoom))
+
+        # write the file into our directory, overwriting existing files
+        with open(os.path.join(self.directory, fname), "w") as f:
+            f.write(tile_data)
 
 class MongoTileStore(TileStore):
     """
@@ -543,5 +580,16 @@ if __name__ == "__main__":
         Tile.from_google(59906, 107919, 18)
     ]
 
+    # tiles that are of a single solid color (we can save space!)
+    uniform_tiles = [
+        Tile.from_google(60, 108, 8), # water
+        Tile.from_google(1605, 2885, 13), # land
+        Tile.from_google(1605, 2887, 13), # park
+        Tile.from_google(1677, 3306, 13) # feature (military, airports, others?)
+    ]
+
     downloader = TileDownloader(MongoTileStore())
     downloader.download(Tile.TYPE_MAP, tiles)
+
+    downloader = TileDownloader(FileTileStore())
+    downloader.download(Tile.TYPE_OVERLAY, uniform_tiles)
