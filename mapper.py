@@ -273,23 +273,21 @@ class FileTileStore:
 
 class MongoTileStore(TileStore):
     """
-    A tile store that stores tiles in MongoDB.
+    Stores tiles on a MongoDB server.
     """
 
-    DB_NAME = "mapper"
-    DB_COLLECTION = "tiles"
-
-    def __init__(self, server="127.0.0.1", port=27017):
+    def __init__(self, server="127.0.0.1", port=27017, db="mapper",
+            collection="tiles"):
         self.connection = pymongo.Connection(server, port)
-        self.db = self.connection[MongoTileStore.DB_NAME]
-        self.collection = self.db[MongoTileStore.DB_COLLECTION]
+        self.db = self.connection[db]
+        self.collection = self.db[collection]
 
     def store(self, tile_type, tile, tile_data):
         assert isinstance(tile_type, Tile.TileType)
         assert isinstance(tile, Tile)
         assert isinstance(tile_data, basestring)
 
-        # start with the base information to see if we already have this tile
+        # start with base information so we can use it to find existing tiles
         tile = {
             # coordinates
             "x": int(tile.x),
@@ -305,14 +303,11 @@ class MongoTileStore(TileStore):
         if stored_tile is not None:
             tile["_id"] = stored_tile["_id"]
 
-        # add specific data for this insert/update
-        tile.update({
-            # image data as binary
-            "image_data": bson.binary.Binary(tile_data),
+        # image data as binary
+        tile["image_data"] = bson.binary.Binary(tile_data)
 
-            # update date, for eventually re-downloading 'old' tiles
-            "update_date": int(time.time())
-        })
+        # update date, for eventually re-downloading 'old' tiles
+        tile["update_date"] = int(time.time())
 
         # add our tile to the collection, updating if the '_id' is set
         self.collection.save(tile)
@@ -328,7 +323,7 @@ class TileDownloader:
 
         # put all our tiles into a queue so all threads can share them
         tile_queue = queue.Queue()
-        [tile_queue.put(tile) for tile in tiles]
+        (tile_queue.put(tile) for tile in tiles)
 
         # assign threads their respective tile lists
         thread_pool = []
@@ -339,7 +334,7 @@ class TileDownloader:
             thread.start()
 
         # wait for all the threads to finish
-        [thread.join() for thread in thread_pool]
+        (thread.join() for thread in thread_pool)
 
     def download_tiles(self, tile_type, tile_queue):
         """
@@ -413,13 +408,18 @@ class TileCalculator:
         result = set(vertices)
 
         # add lines between consecutive vertices
-        prev_vertex = vertices[0]
-        for vertex in vertices[1:]:
-            result.update(TileCalculator.get_line(prev_vertex, vertex))
-            prev_vertex = vertex
+        prev_v = vertices[0]
+        for v in vertices[1:]:
+            (result.add(t) for t in TileCalculator.generate_line(prev_v, v))
+            prev_v = v
 
         # connect the last vertex to the first
-        result.update(TileCalculator.get_line(prev_vertex, vertices[0]))
+        (result.add(t) for t in TileCalculator.generate_line(
+            vertices[0], vertices[1]))
+
+        # stop if there were two or less vertices (can only be a point or line)
+        if len(vertices) <= 2:
+            return result
 
         # find the first inner surface of the polygon and fill from there,
         # casting rays top-to-bottom, left-to-right, starting slightly outside
