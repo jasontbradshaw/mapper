@@ -543,17 +543,15 @@ if __name__ == "__main__":
     #print "Google:", tile_g.x, tile_g.y, tile_g.zoom
     assert tile_m == tile_g
 
-    corners = [
+    # these tiles represent roughly the UT Austin campus
+    ut_corners = [
         Tile.from_google(59902, 107915, 18),
         Tile.from_google(59902, 107919, 18),
         Tile.from_google(59906, 107919, 18)
     ]
 
-    #area = TileCalculator.get_area(corners)
-    #print len(area)
-
-    # these tiles represent roughly the UT Austin campus
-    tiles = [
+    # all the tiles in the area encompassed by the corners
+    ut_tiles = [
         Tile.from_google(59902, 107915, 18),
         Tile.from_google(59903, 107915, 18),
         Tile.from_google(59904, 107915, 18),
@@ -585,6 +583,9 @@ if __name__ == "__main__":
         Tile.from_google(59906, 107919, 18)
     ]
 
+    #ut_area = TileCalculator.get_area(ut_corners)
+    #print len(ut_area)
+
     # tiles that are of a single solid color (we can save space!)
     uniform_tiles = [
         Tile.from_google(60, 108, 8), # water
@@ -594,7 +595,7 @@ if __name__ == "__main__":
     ]
 
     downloader = TileDownloader(MongoTileStore())
-    downloader.download(Tile.TYPE_MAP, tiles)
+    downloader.download(Tile.TYPE_MAP, ut_tiles)
 
     #downloader = TileDownloader(FileTileStore())
     #downloader.download(Tile.TYPE_OVERLAY, uniform_tiles)
