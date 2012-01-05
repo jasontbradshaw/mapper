@@ -486,10 +486,15 @@ class TileCalculator:
     def generate_line(tile0, tile1):
         """
         Generates all the tiles on the line rendered between tile0 and tile1,
-        endpoints inclusive, using Bresenham's line drawing algorithm.
+        endpoints inclusive, using Bresenham's line drawing algorithm. Tiles
+        must have the same zoom level.
 
         Reference: http://en.wikipedia.org/wiki/Bresenham's_line_algorithm
         """
+
+        # disallow unmatched zoom levels
+        if tile0.zoom != tile1.zoom:
+            raise ValueError("Tiles must have the same zoom level.")
 
         # make some shorthand variables
         x0 = tile0.x
@@ -540,8 +545,13 @@ class TileCalculator:
         is True (the default), the first and last vertices are connected. Yields
         the tiles in order from first to last vertex, followed by the edge from
         last to first if connect_ends is True. If edges overlap or vertices are
-        duplicated, the duplicated tiles will be yielded multiple times.
+        duplicated, the duplicated tiles will be yielded multiple times. All
+        vertices must have the same zoom level.
         """
+
+        # disallow unmatched zoom levels
+        if not all([v.zoom == vertices[0].zoom for v in vertices]):
+            raise ValueError("All vertices must have the same zoom level.")
 
         # yield lines between consecutive vertices
         prev_v = None
