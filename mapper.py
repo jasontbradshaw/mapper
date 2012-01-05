@@ -458,125 +458,6 @@ class TileCalculator:
         raise NotImplemented("Can't instantiate " + self.__class__.__name__)
 
     @staticmethod
-    def get_area(vertices):
-        """
-        Gets all the tiles in an area and returns them as a set. Vertices are
-        assumed to be in-order (CW/CCW and starting vertex are irrelevant), and
-        the final vertex is assumed to be connected to the first vertex. If the
-        polygon described by the given vertices is complex (has mutliple inner
-        regions), only the first one found will be filled.
-        """
-
-        # don't do calculations if we weren't given any vertices
-        if len(vertices) == 0:
-            return set()
-
-        # ensure all our vertices have the same zoom level
-        if not all([v.zoom == vertices[0].zoom for v in vertices]):
-            raise ValueError("All vertices must have the same zoom level.")
-
-        # find the furthest vertices in every direction so we know how far we
-        # must cast rays to find edges.
-        top = None
-        bottom = None
-        left = None
-        right = None
-        for vertex in vertices:
-            # left
-            if left is None or vertex.x < left.x:
-                left = vertex
-
-            # right
-            if right is None or vertex.x > right.x:
-                right = vertex
-
-            # top
-            if top is None or vertex.y < top.y:
-                top = vertex
-
-            # bottom
-            if bottom is None or vertex.y > bottom.y:
-                bottom = vertex
-
-        # initialize the set with our initial vertices
-        result = set(vertices)
-
-        # add lines between consecutive vertices
-        prev_v = vertices[0]
-        for v in vertices[1:]:
-            (result.add(t) for t in TileCalculator.generate_line(prev_v, v))
-            prev_v = v
-
-        # connect the last vertex to the first
-        (result.add(t) for t in TileCalculator.generate_line(
-            vertices[0], vertices[1]))
-
-        # stop if there were two or less vertices (can only be a point or line)
-        if len(vertices) <= 2:
-            return result
-
-        # find the first inner surface of the polygon and fill from there,
-        # casting rays top-to-bottom, left-to-right, starting slightly outside
-        # the furthest boundaries and continuing slightly past them.
-        inner_point = None
-
-        # to avoid overhead, we simply modify a point in-situ since it only gets
-        # hashed by x/y/zoom anyhow.
-        point = Tile.from_google(0, 0, vertices[0].zoom)
-
-        for y in xrange(top.y - 1, bottom.y + 2):
-            # did we just exit a line?
-            last_was_filled = False
-
-            for x in xrange(left.x - 1, right.x + 2):
-                # set up the point with the current coordinates
-                point.x = x
-                point.y = y
-
-                # we found our inner point
-                if point not in result and last_was_filled:
-
-                    # TODO: cast rays up, down, and right to ensure we're
-                    # definitively inside the polygon. alternatively, use corner
-                    # detection algorithms.
-                    inner_point = point
-                    break
-
-                # don't allow consecutive points (we're on a line or similar)
-                if point in result and last_was_filled:
-                    break
-
-                # track whether the last point we saw was on a line
-                last_was_filled = point in result
-
-            # give up once the inner loop found an inner point
-            if inner_point is not None:
-                break
-
-        # if the polygon has no inner surfaces, it was a 'line', so don't fill
-        if inner_point is None:
-            return result
-
-        # four-way flood-fill from our inner point
-        point_stack = [inner_point]
-        while len(point_stack) > 0:
-            point = point_stack.pop()
-
-            # fill the point if it wasn't filled already
-            if point not in result:
-                result.add(point)
-
-                # add the point's neighbors
-                north = Tile.from_google(point.x, point.y - 1, point.zoom)
-                south = Tile.from_google(point.x, point.y + 1, point.zoom)
-                east = Tile.from_google(point.x + 1, point.y, point.zoom)
-                west = Tile.from_google(point.x - 1, point.y, point.zoom)
-                point_stack.extend((north, south, east, west))
-
-        # return our filled polygon
-        return result
-
-    @staticmethod
     def generate_line(tile0, tile1):
         """
         Generates all the tiles on the line rendered between tile0 and tile1,
@@ -625,8 +506,7 @@ class TileCalculator:
     @staticmethod
     def get_line(tile0, tile1):
         """
-        Same as the generator method, but this returns a list of tiles, not a
-        generator.
+        Same as generate_line(), but returns a list instead of a generator.
         """
 
         # consume all the tiles in the generator and return them
@@ -652,7 +532,7 @@ class TileCalculator:
         for v in vertices:
             # yield the very first vertex (it gets skipped while line-yielding)
             if prev_v is None:
-                yield v
+                yield copy.copy(v) # only yield unique tile objects
                 prev_v = v
                 continue
 
@@ -680,11 +560,165 @@ class TileCalculator:
     @staticmethod
     def get_polygon(vertices, connect_ends=True):
         """
-        Same as generate_polygon, but returns a list rather than a generator.
+        Same as generate_polygon(), but returns a list rather than a generator.
         """
 
         return [tile for tile in TileCalculator.generate_polygon(vertices,
             connect_ends)]
+
+    @staticmethod
+    def generate_area(vertices, connect_ends=True):
+        """
+        Generates all the tiles in a polygon described by some vertices and
+        yields them in arbitrary order. Uses a fixed-memory method of flood
+        filling (see reference). Described polygons are assumed to be
+        non-complex (no overlapping edges), thus only the first detected inner
+        surface is filled. If there are no inner surfaces, no filling takes
+        place. connect_ends behaves as in generate_polygon().
+
+        Reference: http://en.wikipedia.org/wiki/Flood_fill#Fixed_memory_method_.28right-hand_fill_method.29
+        """
+
+        # don't bother with calculations if we only got a point or a line
+        if len(vertices) == 1:
+            yield copy.copy(vertices[0])
+            return
+        elif len(vertices) == 2:
+            for tile in TileCalculator.generate_line(vertices[0], vertices[1]):
+                yield tile
+            return
+
+        # store hashes of tiles in the polygon (hashes save memory)
+        polygon = set()
+
+        # start with the polygon's edges
+        (polygon.add(hash(t)) for t in TileCalculator.generate_polygon(vertices,
+            connect_ends))
+
+        # to save memory, modify single points for calculations, since Tiles are
+        # hashed by x/y/zoom only anyway.
+        p = Tile.from_google(0, 0, vertices[0].zoom)
+        c = copy.copy(p)
+
+        # find the bounds so we know the maximum ray-casting distances
+        bounds = Bounds.get_bounds(vertices)
+
+        # find the first inner surface of the polygon and fill from there,
+        # casting rays top-to-bottom, left-to-right, starting slightly outside
+        # the furthest boundaries and continuing slightly past them.
+        inner_point = None
+
+        # TODO: test outer crossing, since inner crossing isn't sufficient in
+        # some pathological cases.
+
+        for y in xrange(bounds.top.y, bounds.bottom.y + 1):
+            # tracks whether we just crossed a line
+            last_was_filled = False
+
+            # from slightly outside left to slightly outside right
+            for x in xrange(bounds.left.x - 1, bounds.right.x + 2):
+                # set up the point with the current coordinates
+                p.x = x
+                p.y = y
+
+                # calculate the hash once to save time
+                p_hash = hash(p)
+
+                # don't allow consecutive points (we're on a line or similar)
+                if p_hash in polygon and last_was_filled:
+                    break
+
+                # we found our inner point if we successfully crossed a line
+                if p_hash not in polygon and last_was_filled:
+                    inner_point = point
+                    break
+
+                # track whether the last point we saw was on a line
+                is_corner = TileCalculator.is_corner_point(p, polygon, hash)
+                last_was_filled = p_hash in polygon and not is_corner
+
+            # give up once the inner loop found an inner point
+            if inner_point is not None:
+                break
+
+        # if the polygon has no inner surfaces, it was a 'line', so don't fill
+        if inner_point is None:
+            return
+
+        # TODO: implement right-hand-rule filling
+
+    @staticmethod
+    def is_corner_point(vertex, polygon, membership_test=lambda t: t):
+        """
+        Returns True if a point is a corner vertex given a collection of polygon
+        edge tiles. membership_test is a function that takes a single argument,
+        the vertex, the result of which is used to test edge collision in the
+        polygon (defaults to the identity function).
+        """
+
+        # corners tiles are arranged like so:
+        # 0 1 2
+        # 3 _ 4
+        # 5 6 7
+
+        # copy a point to prevent initialization, 'move' it to required spots,
+        # and test to see if it's in the given polygon
+        c = copy.copy(vertex)
+
+        c.x, c.y = vertex.x - 1, vertex.y - 1
+        c0 = membership_test(c) in polygon
+
+        c.x, c.y = vertex.x, vertex.y - 1
+        c1 = membership_test(c) in polygon
+
+        c.x, c.y = vertex.x + 1, vertex.y - 1
+        c2 = membership_test(c) in polygon
+
+        c.x, c.y = vertex.x - 1, vertex.y
+        c3 = membership_test(c) in polygon
+
+        c.x, c.y = vertex.x + 1, vertex.y
+        c4 = membership_test(c) in polygon
+
+        c.x, c.y = vertex.x - 1, vertex.y + 1
+        c5 = membership_test(c) in polygon
+
+        c.x, c.y = vertex.x, vertex.y + 1
+        c6 = membership_test(c) in polygon
+
+        c.x, c.y = vertex.x + 1, vertex.y + 1
+        c7 = membership_test(c) in polygon
+
+        # corners can only exist when an edge has two or more occupied slots
+        # while the original vertex is occupied, or when two adjacent,
+        # non-opposing slots are filled
+        return membership_test(vertex) in polygon and (
+            # top row
+            (c0 and c1) or
+            (c0 and c2) or
+            (c1 and c2) or
+
+            # bottom row
+            (c5 and c6) or
+            (c5 and c7) or
+            (c6 and c7) or
+
+            # left column
+            (c0 and c3) or
+            (c0 and c5) or
+            (c3 and c5) or
+
+            # right column
+            (c2 and c4) or
+            (c2 and c7) or
+            (c4 and c7) or
+
+            # corners of a square box
+            (c1 and c4) or
+            (c4 and c6) or
+            (c6 and c3) or
+            (c3 and c1) or
+        )
 
 if __name__ == "__main__":
     import pdb
