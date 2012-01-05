@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import collections
+import copy
 from math import pi, atan, exp, sin, log
 import os
 import Queue as queue
@@ -355,9 +356,81 @@ class TileDownloader:
             except queue.Empty:
                 break
 
+class BoundingBox:
+    """
+    A class representing the bounding box of some tiles. It holds the top-most,
+    right-most, bottom-most, and left-most vertices, as well as the bounding
+    box's width, height, and corners.
+    """
+
+    def __init__(self, top, right, bottom, left):
+        """
+        Create a bounds object from top, left, bottom, and right tiles. Should
+        only be used internally: use get_bounds() instead.
+        """
+
+        # save our extremities as copies
+        self.top = copy.copy(top)
+        self.right = copy.copy(right)
+        self.bottom = copy.copy(top)
+        self.left = copy.copy(left)
+
+        # determine the corners of the bounding box as tiles
+        self.top_left = Tile.from_google(left.x, top.y, top.zoom)
+        self.top_right = Tile.from_google(right.x, top.y, top.zoom)
+        self.bottom_right = Tile.from_google(right.x, bottom.y, top.zoom)
+        self.bottom_left = Tile.from_google(left.x, bottom.y, top.zoom)
+
+        # find the width and height of the bounding box, edges inclusive
+        self.width = abs(self.left.x - self.right.x) + 1
+        self.height = abs(self.top.y - self.bottom.y) + 1
+
+    @staticmethod
+    def get_bounds(tiles):
+        """
+        Returns a BoundingBox object containing data about the bounding box that
+        contains the given tiles. If multiple tiles are at the bounds, the first
+        is used. If one tile satisfies multiple bounds, it will be used multiple
+        times. The returned object contains new tiles for all boundaries.
+        """
+
+        # don't bother trying to find the bounds of an empty tile set
+        if len(tiles) == 0:
+            return None
+
+        # disallow unmatched zoom levels
+        if not all([t.zoom == tiles[0].zoom for t in tiles]):
+            raise ValueError("All tiles must have the same zoom level.")
+
+        # find the furthest vertices in the cardinal directions
+        top = None
+        right = None
+        bottom = None
+        left = None
+        for vertex in vertices:
+            # top
+            if top is None or vertex.y < top.y:
+                top = vertex
+
+            # right
+            if right is None or vertex.x > right.x:
+                right = vertex
+
+            # bottom
+            if bottom is None or vertex.y > bottom.y:
+                bottom = vertex
+
+            # left
+            if left is None or vertex.x < left.x:
+                left = vertex
+
+        return BoundingBox(top, right, bottom, left)
+
 class TileCalculator:
     """
     Calculates all the tiles in a region from the specified zoom level down.
+    Meant only to be used as a container class! If members are modified after
+    initialization, values won't be updated to reflect them.
     """
 
     def __init__(self):
