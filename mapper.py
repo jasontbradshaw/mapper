@@ -537,9 +537,11 @@ class TileCalculator:
 if __name__ == "__main__":
     import pdb
 
-    tile = Tile.from_mercator(30.2832, -97.7362, 18)
-    print "Mercator:", tile.latitude, tile.longitude, tile.zoom
-    print "Google:", tile.x, tile.y, tile.zoom
+    tile_m = Tile.from_mercator(30.2832, -97.7362, 18)
+    tile_g = Tile.from_google(59902, 107915, 18)
+    #print "Mercator:", tile_m.latitude, tile_m.longitude, tile_m.zoom
+    #print "Google:", tile_g.x, tile_g.y, tile_g.zoom
+    assert tile_m == tile_g
 
     corners = [
         Tile.from_google(59902, 107915, 18),
