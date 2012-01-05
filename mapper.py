@@ -594,5 +594,5 @@ if __name__ == "__main__":
     downloader = TileDownloader(MongoTileStore())
     downloader.download(Tile.TYPE_MAP, tiles)
 
-    downloader = TileDownloader(FileTileStore())
-    downloader.download(Tile.TYPE_OVERLAY, uniform_tiles)
+    #downloader = TileDownloader(FileTileStore())
+    #downloader.download(Tile.TYPE_OVERLAY, uniform_tiles)
