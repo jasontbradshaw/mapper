@@ -356,7 +356,7 @@ class TileDownloader:
             except queue.Empty:
                 break
 
-class BoundingBox:
+class Bounds:
     """
     A class representing the bounding box of some tiles. It holds the top-most,
     right-most, bottom-most, and left-most vertices, as well as the bounding
@@ -388,7 +388,7 @@ class BoundingBox:
     @staticmethod
     def get_bounds(tiles):
         """
-        Returns a BoundingBox object containing data about the bounding box that
+        Returns a Bounds object containing data about the bounding box that
         contains the given tiles. If multiple tiles are at the bounds, the first
         is used. If one tile satisfies multiple bounds, it will be used multiple
         times. The returned object contains new tiles for all boundaries.
@@ -424,7 +424,7 @@ class BoundingBox:
             if left is None or vertex.x < left.x:
                 left = vertex
 
-        return BoundingBox(top, right, bottom, left)
+        return Bounds(top, right, bottom, left)
 
 class TileCalculator:
     """
