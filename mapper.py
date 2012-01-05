@@ -187,10 +187,9 @@ class Tile:
         except urllib2.HTTPError, e:
             return None
 
-    def __hash__(self):
+    def google_hash(self):
         """
-        We hash only by Google coordinates, so tiles created with very close
-        Mercator coordinates may hash to the same value.
+        Hashes the tile based only on its Google coordinates and zoom.
         """
 
         result = 17
@@ -200,6 +199,28 @@ class Tile:
         result += result * self.zoom * 19
 
         return result * 7
+
+    def mercator_hash(self):
+        """
+        Hashes the tile based only on its Mercator coordinates and zoom.
+        """
+
+        result = 13
+
+        result += result * hash(self.latitude) * 41
+        result += result * hash(self.longitude) * 11
+        result += result * self.zoom * 13
+
+        return result * 19
+
+    def __hash__(self):
+        """
+        We hash only by Google coordinates, so tiles created with very close
+        Mercator coordinates may hash to the same value.
+        """
+
+        # TODO: use both custom hash functions instead of just google_hash()
+        return self.google_hash() #+ self.mercator_hash()
 
     def __eq__(self, other):
         return (isinstance(other, Tile) and
