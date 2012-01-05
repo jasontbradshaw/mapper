@@ -483,18 +483,14 @@ class TileCalculator:
         return result
 
     @staticmethod
-    def get_line(tile0, tile1):
+    def generate_line(tile0, tile1):
         """
         Bresenham's line drawing algorithm, modified to calculate all the tiles
-        between two tiles, including endpoints. Returns an iterable containing
-        the calculated tiles in no particular order.
+        between two tiles, including endpoints. Returns a generator that yields
+        the calculated tiles between tile0 and tile1, including the given tiles.
 
         Reference: http://en.wikipedia.org/wiki/Bresenham's_line_algorithm
         """
-
-        # we must be using the same zoom levels for tiles!
-        if tile0.zoom != tile1.zoom:
-            raise ValueError("Endpoints must have identical zoom levels.")
 
         # make some shorthand variables
         x0 = tile0.x
@@ -511,13 +507,12 @@ class TileCalculator:
 
         err = dx - dy
 
-        line = []
         while 1:
-            # add a tile to the line
-            line.append(Tile.from_google(x0, y0, tile0.zoom))
+            # yield a tile on the line
+            yield Tile.from_google(x0, y0, tile0.zoom)
 
             if x0 == x1 and y0 == y1:
-                break
+                return
 
             e2 = 2 * err
 
@@ -529,7 +524,15 @@ class TileCalculator:
                 err += dx
                 y0 += sy
 
-        return line
+    @staticmethod
+    def get_line(tile0, tile1):
+        """
+        Same as the generator method, but this returns a list of tiles, not a
+        generator.
+        """
+
+        # consume all the tiles in the generator and return them
+        return [tile for tile in TileCalculator.generate_line(tile0, tile1)]
 
 if __name__ == "__main__":
     import pdb
