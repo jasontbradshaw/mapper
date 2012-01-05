@@ -534,14 +534,77 @@ class TileCalculator:
         # consume all the tiles in the generator and return them
         return [tile for tile in TileCalculator.generate_line(tile0, tile1)]
 
+    @staticmethod
+    def generate_polygon(vertices, connect_ends=True):
+        """
+        Renders a polygon from a sequential list of vertices. If connect_ends
+        is True (the default), the first and last vertices are connected. Yields
+        the tiles in order from first to last vertex, followed by the edge from
+        last to first if connect_ends is True. If edges overlap or vertices are
+        duplicated, the duplicated tiles will be yielded multiple times.
+        """
+
+        # yield lines between consecutive vertices
+        prev_v = None
+        for v in vertices:
+            # yield the very first vertex (it gets skipped while line-yielding)
+            if prev_v is None:
+                yield v
+                prev_v = v
+                continue
+
+            # yield all the tiles on the line
+            for tile in TileCalculator.generate_line(prev_v, v):
+                # always skip the first tile, the previous vertex itself
+                if tile == prev_v:
+                    continue
+
+                yield tile
+
+            prev_v = v
+
+        # connect the last vertex to the first, leaving out the endpoints
+        if connect_ends and len(vertices) > 2:
+            first = True
+            for tile in TileCalculator.generate_line(prev_v, vertices[0]):
+                # don't yield the first or last vertices
+                if tile == prev_v or tile == vertices[0]:
+                    continue
+
+                yield tile
+
+    @staticmethod
+    def get_polygon(vertices, connect_ends=True):
+        """
+        Same as generate_polygon, but returns a list rather than a generator.
+        """
+
+        return [tile for tile in TileCalculator.generate_polygon(vertices,
+            connect_ends)]
+
 if __name__ == "__main__":
     import pdb
+    from pprint import pprint
 
     tile_m = Tile.from_mercator(30.2832, -97.7362, 18)
     tile_g = Tile.from_google(59902, 107915, 18)
     #print "Mercator:", tile_m.latitude, tile_m.longitude, tile_m.zoom
     #print "Google:", tile_g.x, tile_g.y, tile_g.zoom
     assert tile_m == tile_g
+
+    # get us an area and make sure it contains no duplicate tiles
+    test_tiles = [
+        Tile.from_google(0, 0, 0),
+        Tile.from_google(5, 0, 0),
+        Tile.from_google(5, 5, 0),
+        Tile.from_google(0, 5, 0),
+    ]
+    test_polygon = TileCalculator.get_polygon(test_tiles)
+    pprint(TileCalculator.get_polygon(test_tiles[0:0]))
+    pprint(TileCalculator.get_polygon(test_tiles[0:1]))
+    pprint(TileCalculator.get_polygon(test_tiles[0:2]))
+    pprint(TileCalculator.get_polygon(test_tiles[0:3]))
+    assert len(test_polygon) == len(set(test_polygon))
 
     # these tiles represent roughly the UT Austin campus
     ut_corners = [
@@ -594,8 +657,8 @@ if __name__ == "__main__":
         Tile.from_google(1677, 3306, 13) # feature (military, airports, others?)
     ]
 
-    downloader = TileDownloader(MongoTileStore())
-    downloader.download(Tile.TYPE_MAP, ut_tiles)
+    #downloader = TileDownloader(MongoTileStore())
+    #downloader.download(Tile.TYPE_MAP, ut_tiles)
 
     #downloader = TileDownloader(FileTileStore())
     #downloader.download(Tile.TYPE_OVERLAY, uniform_tiles)
