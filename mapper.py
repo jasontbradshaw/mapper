@@ -485,9 +485,8 @@ class TileCalculator:
     @staticmethod
     def generate_line(tile0, tile1):
         """
-        Bresenham's line drawing algorithm, modified to calculate all the tiles
-        between two tiles, including endpoints. Returns a generator that yields
-        the calculated tiles between tile0 and tile1, including the given tiles.
+        Generates all the tiles on the line rendered between tile0 and tile1,
+        endpoints inclusive, using Bresenham's line drawing algorithm.
 
         Reference: http://en.wikipedia.org/wiki/Bresenham's_line_algorithm
         """
@@ -563,8 +562,9 @@ class TileCalculator:
 
             prev_v = v
 
-        # connect the last vertex to the first, leaving out the endpoints
+        # connect ends if specified and we have more than just a point or a line
         if connect_ends and len(vertices) > 2:
+            # connect the last vertex to the first, leaving out the endpoints
             first = True
             for tile in TileCalculator.generate_line(prev_v, vertices[0]):
                 # don't yield the first or last vertices
