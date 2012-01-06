@@ -513,14 +513,18 @@ class TileCalculator:
         return [tile for tile in TileCalculator.generate_line(tile0, tile1)]
 
     @staticmethod
-    def generate_polygon(vertices, connect_ends=True):
+    def generate_polygon(vertices, use_separator=False, connect_ends=True):
         """
-        Renders a polygon from a sequential list of vertices. If connect_ends
-        is True (the default), the first and last vertices are connected. Yields
-        the tiles in order from first to last vertex, followed by the edge from
-        last to first if connect_ends is True. If edges overlap or vertices are
-        duplicated, the duplicated tiles will be yielded multiple times. All
-        vertices must have the same zoom level.
+        Generates the tiles in a polygon from a sequential list of vertices. If
+        connect_ends is True (the default), the first and last vertices are
+        connected. If use_separator is True, None is yielded after every line in
+        order to delimit them, and no vertex de-duplicating takes place.
+
+        Yields the edges in order from the first pair to the last pair of
+        vertices, followed by the edge from last to first if connect_ends is
+        True.
+
+        All vertices must have the same zoom level.
         """
 
         # disallow unmatched zoom levels
@@ -532,17 +536,25 @@ class TileCalculator:
         for v in vertices:
             # yield the very first vertex (it gets skipped while line-yielding)
             if prev_v is None:
-                yield copy.copy(v) # only yield unique tile objects
+                if not use_separator:
+                    yield copy.copy(v) # only yield unique tile objects
                 prev_v = v
                 continue
 
             # yield all the tiles on the line
+            first = True
             for tile in TileCalculator.generate_line(prev_v, v):
-                # always skip the first tile, the previous vertex itself
-                if tile == prev_v:
+                # if not using a separator, skip the first tile, the previous
+                # vertex itself
+                if not use_separator and first:
+                    first = False
                     continue
 
                 yield tile
+
+            # yield a special separator between lines if requested
+            if use_separator:
+                yield None
 
             prev_v = v
 
@@ -551,20 +563,25 @@ class TileCalculator:
             # connect the last vertex to the first, leaving out the endpoints
             first = True
             for tile in TileCalculator.generate_line(prev_v, vertices[0]):
-                # don't yield the first or last vertices
-                if tile == prev_v or tile == vertices[0]:
+                # don't yield the first or last vertices if not separating
+                if not use_separator and (first or tile == vertices[0]):
+                    first = False
                     continue
 
                 yield tile
 
+            # yield a final separator if necessary
+            if use_separator:
+                yield None
+
     @staticmethod
-    def get_polygon(vertices, connect_ends=True):
+    def get_polygon(vertices, use_separator=False, connect_ends=True):
         """
         Same as generate_polygon(), but returns a list rather than a generator.
         """
 
-        return [tile for tile in TileCalculator.generate_polygon(vertices,
-            connect_ends)]
+        return [line for line in TileCalculator.generate_polygon(vertices,
+            use_separator, connect_ends)]
 
     @staticmethod
     def generate_area(vertices, connect_ends=True):
@@ -737,12 +754,14 @@ if __name__ == "__main__":
         Tile.from_google(5, 5, 0),
         Tile.from_google(0, 5, 0),
     ]
-    test_polygon = TileCalculator.get_polygon(test_tiles)
-    pprint(TileCalculator.get_polygon(test_tiles[0:0]))
-    pprint(TileCalculator.get_polygon(test_tiles[0:1]))
-    pprint(TileCalculator.get_polygon(test_tiles[0:2]))
-    pprint(TileCalculator.get_polygon(test_tiles[0:3]))
-    assert len(test_polygon) == len(set(test_polygon))
+
+    pprint(TileCalculator.get_polygon(test_tiles[0:1], use_separator=False))
+    print
+    pprint(TileCalculator.get_polygon(test_tiles[0:2], use_separator=False))
+    print
+    pprint(TileCalculator.get_polygon(test_tiles[0:3], use_separator=False))
+    print
+    pprint(TileCalculator.get_polygon(test_tiles[0:4], use_separator=False))
 
     # these tiles represent roughly the UT Austin campus
     ut_corners = [
