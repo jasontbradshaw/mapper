@@ -187,7 +187,7 @@ class Tile:
         except urllib2.HTTPError, e:
             return None
 
-    def google_hash(self):
+    def hash_google(self):
         """
         Hashes the tile based only on its Google coordinates and zoom.
         """
@@ -200,7 +200,7 @@ class Tile:
 
         return result * 7
 
-    def mercator_hash(self):
+    def hash_mercator(self):
         """
         Hashes the tile based only on its Mercator coordinates and zoom.
         """
