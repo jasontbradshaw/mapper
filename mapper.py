@@ -393,7 +393,7 @@ class Bounds:
         # save our extremities as copies
         self.top = copy.copy(top)
         self.right = copy.copy(right)
-        self.bottom = copy.copy(top)
+        self.bottom = copy.copy(bottom)
         self.left = copy.copy(left)
 
         # determine the corners of the bounding box as tiles
@@ -614,8 +614,78 @@ class TileCalculator:
                 yield tile
             return
 
-        # find the bounds so we know the maximum ray-casting distances
+        # add all the edges to a list of sets, for fast line intersection
+        edges = []
+
+        # vertices of the edge
+        v0 = None
+        v1 = None
+
+        # collect tiles for each edge
+        edge = set()
+        for tile in TileCalculator.generate_polygon(vertices, True, connect_ends):
+            # add an edge when we encounter a separator (only encountered after)
+            if tile is None:
+                # append a tuple of bounds and edge tile hashes
+                edges.append((Bounds.get_bounds((v0, v1)), edge))
+
+                # reset
+                edge = set()
+                v0 = None
+                v1 = None
+
+                continue
+
+            # always collect the tile, so the final value is the second vertex
+            v1 = tile
+
+            # save the first vertex
+            if len(edge) == 0:
+                v0 = tile
+
+            # add the tile to the edge
+            edge.add(tile.hash_google())
+
+        # sort edges left-to-right
+        edges.sort(key=lambda e: e[0].left.x)
+
+        pprint(edges)
+
+        # NOTE: we now have a list of all the edges' tiles paired with bounds
+
+        # create a new map for vertices so we can find them by their google hash
+        hashed_vertices = {}
+        for vertex in vertices:
+            hashed_vertices[vertex.hash_google()] = vertex
+
+        # scan from top to bottom, generating scanlines
         bounds = Bounds.get_bounds(vertices)
+        t = copy.copy(vertices[0]) # use one tile object for scanning
+        print "bounds:", bounds
+        print "vertices:", vertices
+        for y in xrange(bounds.top.y, bounds.bottom.y + 1):
+            # TODO: filter edges we can't intersect with
+            filtered_edges = edges
+
+            # scan left-to-right, intersecting edges
+            intersections = []
+            is_vertex = False
+            for x in xrange(bounds.left.x, bounds.right.x + 1):
+                # fill out our tile with the current google coordinates
+                t.x, t.y = x, y
+                t_hash = t.hash_google()
+
+                # TODO: when we find an intersection, store it
+                for edge_bounds, edge in edges:
+                    if t_hash in edge:
+                        # store the tile away as an intersecting tile
+                        intersections.append(copy.copy(t))
+
+                        # mark whether we've got a vertex
+                        is_vertex = is_vertex or t_hash in hashed_vertices
+
+            print "intersections:", intersections
+
 
     @staticmethod
     def get_area(vertices, connect_ends=True):
@@ -643,13 +713,12 @@ if __name__ == "__main__":
         Tile.from_google(0, 5, 0),
     ]
 
-    pprint(TileCalculator.get_polygon(test_tiles[0:1], use_separator=False))
-    print
-    pprint(TileCalculator.get_polygon(test_tiles[0:2], use_separator=False))
-    print
-    pprint(TileCalculator.get_polygon(test_tiles[0:3], use_separator=False))
-    print
-    pprint(TileCalculator.get_polygon(test_tiles[0:4], use_separator=False))
+    #pprint(TileCalculator.get_polygon(test_tiles[0:1], use_separator=False))
+    #pprint(TileCalculator.get_polygon(test_tiles[0:2], use_separator=False))
+    #pprint(TileCalculator.get_polygon(test_tiles[0:3], use_separator=False))
+    #pprint(TileCalculator.get_polygon(test_tiles[0:4], use_separator=False))
+
+    TileCalculator.get_area(test_tiles)
 
     # these tiles represent roughly the UT Austin campus
     ut_corners = [
