@@ -446,6 +446,16 @@ class Bounds:
 
         return Bounds(top, right, bottom, left)
 
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        s = self.__class__.__name__ + "("
+        s += ", ".join(map(repr, (self.top, self.right, self.bottom, self.left)))
+        s += ")"
+
+        return s
+
 class TileCalculator:
     """
     Calculates all the tiles in a region from the specified zoom level down.
