@@ -380,7 +380,8 @@ class Bounds:
     """
     A class representing the bounding box of some tiles. It holds the top-most,
     right-most, bottom-most, and left-most vertices, as well as the bounding
-    box's width, height, and corners.
+    box's width, height, and corners. All values are calculated as x/y, not
+    latitude/longitude.
     """
 
     def __init__(self, top, right, bottom, left):
