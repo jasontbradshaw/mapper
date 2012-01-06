@@ -215,12 +215,11 @@ class Tile:
 
     def __hash__(self):
         """
-        We hash only by Google coordinates, so tiles created with very close
-        Mercator coordinates may hash to the same value.
+        Uses both custom hash functions together to generate a hash over all the
+        members of the tile.
         """
 
-        # TODO: use both custom hash functions instead of just google_hash()
-        return self.google_hash() #+ self.mercator_hash()
+        return self.google_hash() + self.mercator_hash()
 
     def __eq__(self, other):
         return (isinstance(other, Tile) and
