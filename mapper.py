@@ -587,16 +587,15 @@ class TileCalculator:
     def generate_area(vertices, connect_ends=True):
         """
         Generates all the tiles in a polygon described by some vertices and
-        yields them in arbitrary order. Uses a fixed-memory method of flood
-        filling (see reference). Described polygons are assumed to be
-        non-complex (no overlapping edges), thus only the first detected inner
-        surface is filled. If there are no inner surfaces, no filling takes
-        place. connect_ends behaves as in generate_polygon().
+        yields them in arbitrary order. connect_ends behaves as in
+        generate_polygon().
 
         Reference: http://en.wikipedia.org/wiki/Flood_fill#Fixed_memory_method_.28right-hand_fill_method.29
         """
 
-        # don't bother with calculations if we only got a point or a line
+        # don't bother with calculations for corner cases
+        if len(vertices) == 0:
+            return
         if len(vertices) == 1:
             yield copy.copy(vertices[0])
             return
@@ -605,137 +604,16 @@ class TileCalculator:
                 yield tile
             return
 
-        # store hashes of tiles in the polygon (hashes save memory)
-        polygon = set()
-
-        # start with the polygon's edges
-        (polygon.add(hash(t)) for t in TileCalculator.generate_polygon(vertices,
-            connect_ends))
-
-        # to save memory, modify single points for calculations, since Tiles are
-        # hashed by x/y/zoom only anyway.
-        p = Tile.from_google(0, 0, vertices[0].zoom)
-        c = copy.copy(p)
-
         # find the bounds so we know the maximum ray-casting distances
         bounds = Bounds.get_bounds(vertices)
 
-        # find the first inner surface of the polygon and fill from there,
-        # casting rays top-to-bottom, left-to-right, starting slightly outside
-        # the furthest boundaries and continuing slightly past them.
-        inner_point = None
-
-        # TODO: test outer crossing, since inner crossing isn't sufficient in
-        # some pathological cases.
-
-        for y in xrange(bounds.top.y, bounds.bottom.y + 1):
-            # tracks whether we just crossed a line
-            last_was_filled = False
-
-            # from slightly outside left to slightly outside right
-            for x in xrange(bounds.left.x - 1, bounds.right.x + 2):
-                # set up the point with the current coordinates
-                p.x = x
-                p.y = y
-
-                # calculate the hash once to save time
-                p_hash = hash(p)
-
-                # don't allow consecutive points (we're on a line or similar)
-                if p_hash in polygon and last_was_filled:
-                    break
-
-                # we found our inner point if we successfully crossed a line
-                if p_hash not in polygon and last_was_filled:
-                    inner_point = point
-                    break
-
-                # track whether the last point we saw was on a line
-                is_corner = TileCalculator.is_corner_point(p, polygon, hash)
-                last_was_filled = p_hash in polygon and not is_corner
-
-            # give up once the inner loop found an inner point
-            if inner_point is not None:
-                break
-
-        # if the polygon has no inner surfaces, it was a 'line', so don't fill
-        if inner_point is None:
-            return
-
-        # TODO: implement right-hand-rule filling
-
     @staticmethod
-    def is_corner_point(vertex, polygon, membership_test=lambda t: t):
+    def get_area(vertices, connect_ends=True):
         """
-        Returns True if a point is a corner vertex given a collection of polygon
-        edge tiles. membership_test is a function that takes a single argument,
-        the vertex, the result of which is used to test edge collision in the
-        polygon (defaults to the identity function).
+        Same as generate_area(), but returns a list instead of a generator.
         """
 
-        # corners tiles are arranged like so:
-        # 0 1 2
-        # 3 _ 4
-        # 5 6 7
-
-        # copy a point to prevent initialization, 'move' it to required spots,
-        # and test to see if it's in the given polygon
-        c = copy.copy(vertex)
-
-        c.x, c.y = vertex.x - 1, vertex.y - 1
-        c0 = membership_test(c) in polygon
-
-        c.x, c.y = vertex.x, vertex.y - 1
-        c1 = membership_test(c) in polygon
-
-        c.x, c.y = vertex.x + 1, vertex.y - 1
-        c2 = membership_test(c) in polygon
-
-        c.x, c.y = vertex.x - 1, vertex.y
-        c3 = membership_test(c) in polygon
-
-        c.x, c.y = vertex.x + 1, vertex.y
-        c4 = membership_test(c) in polygon
-
-        c.x, c.y = vertex.x - 1, vertex.y + 1
-        c5 = membership_test(c) in polygon
-
-        c.x, c.y = vertex.x, vertex.y + 1
-        c6 = membership_test(c) in polygon
-
-        c.x, c.y = vertex.x + 1, vertex.y + 1
-        c7 = membership_test(c) in polygon
-
-        # corners can only exist when an edge has two or more occupied slots
-        # while the original vertex is occupied, or when two adjacent,
-        # non-opposing slots are filled
-        return membership_test(vertex) in polygon and (
-            # top row
-            (c0 and c1) or
-            (c0 and c2) or
-            (c1 and c2) or
-
-            # bottom row
-            (c5 and c6) or
-            (c5 and c7) or
-            (c6 and c7) or
-
-            # left column
-            (c0 and c3) or
-            (c0 and c5) or
-            (c3 and c5) or
-
-            # right column
-            (c2 and c4) or
-            (c2 and c7) or
-            (c4 and c7) or
-
-            # corners of a square box
-            (c1 and c4) or
-            (c4 and c6) or
-            (c6 and c3) or
-            (c3 and c1) or
-        )
+        return [t for t in TileCalculator.generate_area(vertices, connect_ends)]
 
 if __name__ == "__main__":
     import pdb
