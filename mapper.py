@@ -345,7 +345,7 @@ class TileDownloader:
 
         # put all our tiles into a queue so all threads can share them
         tile_queue = queue.Queue()
-        (tile_queue.put(tile) for tile in tiles)
+        [tile_queue.put(tile) for tile in tiles]
 
         # assign threads their respective tile lists
         thread_pool = []
@@ -356,7 +356,7 @@ class TileDownloader:
             thread.start()
 
         # wait for all the threads to finish
-        (thread.join() for thread in thread_pool)
+        [thread.join() for thread in thread_pool]
 
     def download_tiles(self, tile_type, tile_queue):
         """
