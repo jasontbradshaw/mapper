@@ -385,7 +385,7 @@ class Bounds:
 
     def __init__(self, top, right, bottom, left):
         """
-        Create a bounds object from top, left, bottom, and right tiles. Should
+        Create a bounds object from top, right, bottom, and left tiles. Should
         only be used internally: use get_bounds() instead.
         """
 
