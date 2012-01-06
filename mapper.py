@@ -428,22 +428,22 @@ class Bounds:
         right = None
         bottom = None
         left = None
-        for vertex in vertices:
+        for tile in tiles:
             # top
-            if top is None or vertex.y < top.y:
-                top = vertex
+            if top is None or tile.y < top.y:
+                top = tile
 
             # right
-            if right is None or vertex.x > right.x:
-                right = vertex
+            if right is None or tile.x > right.x:
+                right = tile
 
             # bottom
-            if bottom is None or vertex.y > bottom.y:
-                bottom = vertex
+            if bottom is None or tile.y > bottom.y:
+                bottom = tile
 
             # left
-            if left is None or vertex.x < left.x:
-                left = vertex
+            if left is None or tile.x < left.x:
+                left = tile
 
         return Bounds(top, right, bottom, left)
 
