@@ -219,7 +219,7 @@ class Tile:
         members of the tile.
         """
 
-        return self.google_hash() + self.mercator_hash()
+        return self.hash_google() ^ self.hash_mercator()
 
     def __eq__(self, other):
         return (isinstance(other, Tile) and
