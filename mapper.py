@@ -626,8 +626,13 @@ class TileCalculator:
         for tile in TileCalculator.generate_polygon(vertices, True, connect_ends):
             # add an edge when we encounter a separator (only encountered after)
             if tile is None:
-                # append a tuple of bounds and edge tile hashes
-                edges.append((Bounds.get_bounds((v0, v1)), edge))
+                # find our edge bounds
+                edge_bounds = Bounds.get_bounds((v0, v1))
+
+                # only keep non-horizontal edges
+                if edge_bounds.top.y != edge_bounds.bottom.y:
+                    # append a tuple of bounds and edge tile hashes
+                    edges.append((edge_bounds, edge))
 
                 # reset
                 edge = set()
@@ -649,43 +654,56 @@ class TileCalculator:
         # sort edges left-to-right
         edges.sort(key=lambda e: e[0].left.x)
 
-        pprint(edges)
-
         # NOTE: we now have a list of all the edges' tiles paired with bounds
 
         # create a new map for vertices so we can find them by their google hash
-        hashed_vertices = {}
-        for vertex in vertices:
-            hashed_vertices[vertex.hash_google()] = vertex
+        hashed_vertices = set()
+        [hashed_vertices.add(v) for v in vertices]
 
         # scan from top to bottom, generating scanlines
         bounds = Bounds.get_bounds(vertices)
-        t = copy.copy(vertices[0]) # use one tile object for scanning
-        print "bounds:", bounds
-        print "vertices:", vertices
-        for y in xrange(bounds.top.y, bounds.bottom.y + 1):
-            # TODO: filter edges we can't intersect with
-            filtered_edges = edges
 
-            # scan left-to-right, intersecting edges
+        # use just one tile object for scanning to save creating lots of tiles
+        t = copy.copy(vertices[0])
+        for y in xrange(bounds.top.y, bounds.bottom.y + 1):
+            # scan left-right (starting from known empty tiles), intersecting
             intersections = []
-            is_vertex = False
+            print "intersecting at y=" + str(y) + ":"
             for x in xrange(bounds.left.x, bounds.right.x + 1):
                 # fill out our tile with the current google coordinates
                 t.x, t.y = x, y
                 t_hash = t.hash_google()
 
-                # TODO: when we find an intersection, store it
-                for edge_bounds, edge in edges:
-                    if t_hash in edge:
+                # when we find an intersection, store it
+                intersected_edges = []
+                for edge in edges:
+                    edge_bounds, edge_tiles = edge
+
+                    # TODO: skip edges we can't intersect with
+
+                    on_edge = t_hash in edge_tiles
+                    if on_edge:
+                        print "intersection:", t
                         # store the tile away as an intersecting tile
-                        intersections.append(copy.copy(t))
+                        intersected_edges.append((edge, copy.copy(t)))
 
-                        # mark whether we've got a vertex
-                        is_vertex = is_vertex or t_hash in hashed_vertices
+                # de-dupe certain intersections
+                if len(intersected_edges) > 1:
+                    print "de-duping"
+                    (i1_bounds, i1_edge), i1_tile = intersected_edges[0]
+                    (i2_bounds, i2_edge), i2_tile = intersected_edges[1]
 
-            print "intersections:", intersections
+                    # condense down to a single intersection if we didn't meet
+                    # in a 'v' or '^' shape and we were on a vertex.
+                    if i1_tile.hash_google() in hashed_vertices:
+                        if not (i1_bounds.bottom.y == i2_bounds.bottom.y or
+                                i1_bounds.top.y == i2_bounds.top.y):
+                            intersected_edges = intersected_edges[0:2]
 
+                # add remaining de-duped tiles
+                [intersections.append(t) for _, t in intersected_edges]
+
+            print
 
     @staticmethod
     def get_area(vertices, connect_ends=True):
