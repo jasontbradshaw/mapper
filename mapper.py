@@ -648,7 +648,13 @@ class Polygon:
                 for edge in edges:
                     edge_bounds, edge_points = edge
 
-                    # TODO: skip edges we can't intersect with
+                    # skip edges we can't intersect with
+                    if (edge_bounds.right[0] < p[0] or
+                            edge_bounds.left[0] > p[0] or
+                            edge_bounds.bottom[1] < p[1] or
+                            edge_bounds.top[1] > p[1]):
+                        continue
+
 
                     on_edge = p_hash in edge_points
                     if on_edge:
