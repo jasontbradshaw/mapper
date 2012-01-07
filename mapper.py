@@ -378,114 +378,97 @@ class TileDownloader:
 
 class Bounds:
     """
-    A class representing the bounding box of some tiles. It holds the top-most,
-    right-most, bottom-most, and left-most vertices, as well as the bounding
-    box's width, height, and corners. All values are calculated as x/y, not
-    latitude/longitude.
+    A class representing the bounding box of some points. It holds the top-most,
+    right-most, bottom-most, and left-most vertices.
     """
 
-    def __init__(self, top, right, bottom, left):
+    def __init__(self, top=None, right=None, bottom=None, left=None):
         """
-        Create a bounds object from top, right, bottom, and left tiles. Should
+        Create a bounds object from top, right, bottom, and left points. Should
         only be used internally: use get_bounds() instead.
         """
 
         # save our extremities as copies
-        self.top = copy.copy(top)
-        self.right = copy.copy(right)
-        self.bottom = copy.copy(bottom)
-        self.left = copy.copy(left)
-
-        # determine the corners of the bounding box as tiles
-        self.top_left = Tile.from_google(left.x, top.y, top.zoom)
-        self.top_right = Tile.from_google(right.x, top.y, top.zoom)
-        self.bottom_right = Tile.from_google(right.x, bottom.y, top.zoom)
-        self.bottom_left = Tile.from_google(left.x, bottom.y, top.zoom)
-
-        # find the width and height of the bounding box, edges inclusive
-        self.width = abs(self.left.x - self.right.x) + 1
-        self.height = abs(self.top.y - self.bottom.y) + 1
+        self.top = top
+        self.right = right
+        self.bottom = bottom
+        self.left = left
 
     @staticmethod
-    def get_bounds(tiles):
+    def get_bounds(*points):
         """
         Returns a Bounds object containing data about the bounding box that
-        contains the given tiles. If multiple tiles are at the bounds, the first
-        is used. If one tile satisfies multiple bounds, it will be used multiple
-        times. The returned object contains new tiles for all boundaries.
+        contains the given points. If multiple points are at the bounds, the
+        first is used. If one point satisfies multiple bounds, it will be used
+        multiple times.
         """
-
-        # don't bother trying to find the bounds of an empty tile set
-        if len(tiles) == 0:
-            return None
-
-        # disallow unmatched zoom levels
-        if not all([t.zoom == tiles[0].zoom for t in tiles]):
-            raise ValueError("All tiles must have the same zoom level.")
 
         # find the furthest vertices in the cardinal directions
         top = None
         right = None
         bottom = None
         left = None
-        for tile in tiles:
+        for point in points:
             # top
-            if top is None or tile.y < top.y:
-                top = tile
+            if top is None or point[1] < top[1]:
+                top = point
 
             # right
-            if right is None or tile.x > right.x:
-                right = tile
+            if right is None or point[0] > right[0]:
+                right = point
 
             # bottom
-            if bottom is None or tile.y > bottom.y:
-                bottom = tile
+            if bottom is None or point[1] > bottom[1]:
+                bottom = point
 
             # left
-            if left is None or tile.x < left.x:
-                left = tile
+            if left is None or point[0] < left[0]:
+                left = point
 
-        return Bounds(top, right, bottom, left)
+        return Bounds(top=top, right=right, bottom=bottom, left=left)
 
     def __str__(self):
-        return repr(self)
-
-    def __repr__(self):
-        s = self.__class__.__name__ + "("
-        s += ", ".join(map(repr, (self.top, self.right, self.bottom, self.left)))
+        s = "("
+        s += ",".join(map(str((self.top, self.right, self.bottom, self.left))))
         s += ")"
 
         return s
 
-class TileCalculator:
+    def __repr__(self):
+        s = self.__class__.__name__ + "("
+        s += "top=" + str(self.top)
+        s += ", "
+        s += "right=" + str(self.right)
+        s += ", "
+        s += "bottom=" + str(self.bottom)
+        s += ", "
+        s += "left=" + str(self.left)
+        s += ")"
+
+        return s
+
+class Polygon:
     """
-    Calculates all the tiles in a region from the specified zoom level down.
-    Meant only to be used as a container class! If members are modified after
-    initialization, values won't be updated to reflect them.
+    A utility class for operations on lists of vertices.
     """
 
     def __init__(self):
-        raise NotImplemented("Can't instantiate " + self.__class__.__name__)
+        raise NotImplemented(self.__class__.__name__ + " can't be instantiated")
 
     @staticmethod
-    def generate_line(tile0, tile1):
+    def generate_line(a, b):
         """
-        Generates all the tiles on the line rendered between tile0 and tile1,
-        endpoints inclusive, using Bresenham's line drawing algorithm. Tiles
-        must have the same zoom level.
+        Rasterizes the line between the given points, and yields them all
+        in-order, endpoints included, using Bresenham's line drawing algorithm.
 
         Reference: http://en.wikipedia.org/wiki/Bresenham's_line_algorithm
         """
 
-        # disallow unmatched zoom levels
-        if tile0.zoom != tile1.zoom:
-            raise ValueError("Tiles must have the same zoom level.")
-
         # make some shorthand variables
-        x0 = tile0.x
-        y0 = tile0.y
-        x1 = tile1.x
-        y1 = tile1.y
+        x0 = a[0]
+        y0 = a[1]
+        x1 = b[0]
+        y1 = b[1]
 
         # an optimized version of the algorithm (see #Simplification in wiki)
         dx = abs(x1 - x0)
@@ -497,8 +480,8 @@ class TileCalculator:
         err = dx - dy
 
         while 1:
-            # yield a tile on the line
-            yield Tile.from_google(x0, y0, tile0.zoom)
+            # yield a rasterized point on the line
+            yield (x0, y0)
 
             if x0 == x1 and y0 == y1:
                 return
@@ -514,53 +497,43 @@ class TileCalculator:
                 y0 += sy
 
     @staticmethod
-    def get_line(tile0, tile1):
+    def get_line(a, b):
         """
         Same as generate_line(), but returns a list instead of a generator.
         """
 
-        # consume all the tiles in the generator and return them
-        return [tile for tile in TileCalculator.generate_line(tile0, tile1)]
+        return [point for point in Polygon.generate_line(a, b)]
 
     @staticmethod
-    def generate_polygon(vertices, use_separator=False, connect_ends=True):
+    def generate_polygon(vertices, use_separator=False):
         """
-        Generates the tiles in a polygon from a sequential list of vertices. If
-        connect_ends is True (the default), the first and last vertices are
-        connected. If use_separator is True, None is yielded after every line in
-        order to delimit them, and no vertex de-duplicating takes place.
-
-        Yields the edges in order from the first pair to the last pair of
-        vertices, followed by the edge from last to first if connect_ends is
-        True.
-
-        All vertices must have the same zoom level.
+        Generates the points in a polygon from the internal vertices from the
+        first pair to the pair formed from the last and first vertices. If
+        use_separator is True, None is yielded as a delimiter after every line,
+        and no vertex de-duplicating takes place, otherwise each vertex is only
+        yielded once.
         """
-
-        # disallow unmatched zoom levels
-        if not all([v.zoom == vertices[0].zoom for v in vertices]):
-            raise ValueError("All vertices must have the same zoom level.")
 
         # yield lines between consecutive vertices
         prev_v = None
         for v in vertices:
-            # yield the very first vertex (it gets skipped while line-yielding)
+            # yield the very first vertex (it normally gets skipped)
             if prev_v is None:
                 if not use_separator:
-                    yield copy.copy(v) # only yield unique tile objects
+                    yield v
                 prev_v = v
                 continue
 
-            # yield all the tiles on the line
+            # yield all the points on the line
             first = True
-            for tile in TileCalculator.generate_line(prev_v, v):
-                # if not using a separator, skip the first tile, the previous
+            for point in Polygon.generate_line(prev_v, v):
+                # if not using a separator, skip the first point, the previous
                 # vertex itself
                 if not use_separator and first:
                     first = False
                     continue
 
-                yield tile
+                yield point
 
             # yield a special separator between lines if requested
             if use_separator:
@@ -568,39 +541,36 @@ class TileCalculator:
 
             prev_v = v
 
-        # connect ends if specified and we have more than just a point or a line
-        if connect_ends and len(vertices) > 2:
+        # connect ends if and we have more than just a point or a line
+        if len(vertices) > 2:
             # connect the last vertex to the first, leaving out the endpoints
             first = True
-            for tile in TileCalculator.generate_line(prev_v, vertices[0]):
+            for point in Polygon.generate_line(prev_v, vertices[0]):
                 # don't yield the first or last vertices if not separating
-                if not use_separator and (first or tile == vertices[0]):
+                if not use_separator and (first or point == vertices[0]):
                     first = False
                     continue
 
-                yield tile
+                yield point
 
             # yield a final separator if necessary
             if use_separator:
                 yield None
 
     @staticmethod
-    def get_polygon(vertices, use_separator=False, connect_ends=True):
+    def get_polygon(vertices, use_separator=False):
         """
         Same as generate_polygon(), but returns a list rather than a generator.
         """
 
-        return [line for line in TileCalculator.generate_polygon(vertices,
-            use_separator, connect_ends)]
+        return [point for point in Polygon.generate_polygon(vertices,
+            use_separator)]
 
     @staticmethod
-    def generate_area(vertices, connect_ends=True):
+    def generate_area(vertices):
         """
-        Generates all the tiles in a polygon described by some vertices and
-        yields them in arbitrary order. connect_ends behaves as in
-        generate_polygon().
-
-        Reference: http://en.wikipedia.org/wiki/Flood_fill#Fixed_memory_method_.28right-hand_fill_method.29
+        Generates all the points on the rasterized polygon described by a list
+        of vertices and yields them in arbitrary order.
         """
 
         # don't bother with calculations for corner cases
@@ -610,8 +580,8 @@ class TileCalculator:
             yield copy.copy(vertices[0])
             return
         elif len(vertices) == 2:
-            for tile in TileCalculator.generate_line(vertices[0], vertices[1]):
-                yield tile
+            for point in Polygon.generate_line(vertices[0], vertices[1]):
+                yield point
             return
 
         # add all the edges to a list of sets, for fast line intersection
@@ -621,17 +591,17 @@ class TileCalculator:
         v0 = None
         v1 = None
 
-        # collect tiles for each edge
+        # collect points for each edge
         edge = set()
-        for tile in TileCalculator.generate_polygon(vertices, True, connect_ends):
+        for point in Polygon.generate_polygon(vertices, True):
             # add an edge when we encounter a separator (only encountered after)
-            if tile is None:
+            if point is None:
                 # find our edge bounds
-                edge_bounds = Bounds.get_bounds((v0, v1))
+                edge_bounds = Bounds.get_bounds(v0, v1)
 
                 # only keep non-horizontal edges
-                if edge_bounds.top.y != edge_bounds.bottom.y:
-                    # append a tuple of bounds and edge tile hashes
+                if edge_bounds.top[1] != edge_bounds.bottom[1]:
+                    # append a tuple of bounds and edge point hashes
                     edges.append((edge_bounds, edge))
 
                 # reset
@@ -641,77 +611,77 @@ class TileCalculator:
 
                 continue
 
-            # always collect the tile, so the final value is the second vertex
-            v1 = tile
+            # always collect the point, so the final value is the second vertex
+            v1 = point
 
             # save the first vertex
             if len(edge) == 0:
-                v0 = tile
+                v0 = point
 
-            # add the tile to the edge
-            edge.add(tile.hash_google())
+            # add the point to the edge (as a hash, to save memory)
+            edge.add(hash(point))
 
         # sort edges left-to-right
-        edges.sort(key=lambda e: e[0].left.x)
+        edges.sort(key=lambda e: e[0].left[0])
 
-        # NOTE: we now have a list of all the edges' tiles paired with bounds
+        # NOTE: we now have a list of all the edges' points paired with bounds
 
-        # create a new map for vertices so we can find them by their google hash
+        # create a new map for vertices so we can find them by their hash
         hashed_vertices = set()
-        [hashed_vertices.add(v) for v in vertices]
+        [hashed_vertices.add(hash(v)) for v in vertices]
 
         # scan from top to bottom, generating scanlines
-        bounds = Bounds.get_bounds(vertices)
+        bounds = Bounds.get_bounds(*vertices)
 
         # use just one tile object for scanning to save creating lots of tiles
-        t = copy.copy(vertices[0])
-        for y in xrange(bounds.top.y, bounds.bottom.y + 1):
-            # scan left-right (starting from known empty tiles), intersecting
+        for y in xrange(bounds.top[1], bounds.bottom[1] + 1):
+            # scan left-right (starting from known empty points), intersecting
             intersections = []
             print "intersecting at y=" + str(y) + ":"
-            for x in xrange(bounds.left.x, bounds.right.x + 1):
-                # fill out our tile with the current google coordinates
-                t.x, t.y = x, y
-                t_hash = t.hash_google()
+            for x in xrange(bounds.left[0], bounds.right[0] + 1):
+                # get the hash of the current coordinates
+                p = (x, y)
+                p_hash = hash(p)
 
                 # when we find an intersection, store it
                 intersected_edges = []
                 for edge in edges:
-                    edge_bounds, edge_tiles = edge
+                    edge_bounds, edge_points = edge
 
                     # TODO: skip edges we can't intersect with
 
-                    on_edge = t_hash in edge_tiles
+                    on_edge = p_hash in edge_points
                     if on_edge:
-                        print "intersection:", t
+                        print "intersection:", p
                         # store the tile away as an intersecting tile
-                        intersected_edges.append((edge, copy.copy(t)))
+                        intersected_edges.append((edge, p))
 
                 # de-dupe certain intersections
                 if len(intersected_edges) > 1:
                     print "de-duping"
-                    (i1_bounds, i1_edge), i1_tile = intersected_edges[0]
-                    (i2_bounds, i2_edge), i2_tile = intersected_edges[1]
+                    (i1_bounds, i1_edge), i1_point = intersected_edges[0]
+                    (i2_bounds, i2_edge), i2_point = intersected_edges[1]
 
                     # condense down to a single intersection if we didn't meet
                     # in a 'v' or '^' shape and we were on a vertex.
-                    if i1_tile.hash_google() in hashed_vertices:
-                        if not (i1_bounds.bottom.y == i2_bounds.bottom.y or
-                                i1_bounds.top.y == i2_bounds.top.y):
+                    if (hash(i1_point) in hashed_vertices and
+                            hash(i2_point) in hashed_vertices):
+                        if not (i1_bounds.bottom[1] == i2_bounds.bottom[1] or
+                                i1_bounds.top[1] == i2_bounds.top[1]):
                             intersected_edges = intersected_edges[0:2]
 
                 # add remaining de-duped tiles
-                [intersections.append(t) for _, t in intersected_edges]
+                [intersections.append(p) for _, p in intersected_edges]
 
             print
 
     @staticmethod
-    def get_area(vertices, connect_ends=True):
+    def get_area(vertices):
         """
         Same as generate_area(), but returns a list instead of a generator.
         """
 
-        return [t for t in TileCalculator.generate_area(vertices, connect_ends)]
+        return [point for point in Polygon.generate_area(vertices)]
 
 if __name__ == "__main__":
     import pdb
@@ -724,19 +694,14 @@ if __name__ == "__main__":
     assert tile_m == tile_g
 
     # get us an area and make sure it contains no duplicate tiles
-    test_tiles = [
-        Tile.from_google(0, 0, 0),
-        Tile.from_google(5, 0, 0),
-        Tile.from_google(5, 5, 0),
-        Tile.from_google(0, 5, 0),
+    points = [
+        (0, 0),
+        (5, 0),
+        (5, 5),
+        (0, 5)
     ]
 
-    #pprint(TileCalculator.get_polygon(test_tiles[0:1], use_separator=False))
-    #pprint(TileCalculator.get_polygon(test_tiles[0:2], use_separator=False))
-    #pprint(TileCalculator.get_polygon(test_tiles[0:3], use_separator=False))
-    #pprint(TileCalculator.get_polygon(test_tiles[0:4], use_separator=False))
-
-    TileCalculator.get_area(test_tiles)
+    Polygon.get_area(points)
 
     # these tiles represent roughly the UT Austin campus
     ut_corners = [
@@ -778,7 +743,7 @@ if __name__ == "__main__":
         Tile.from_google(59906, 107919, 18)
     ]
 
-    #ut_area = TileCalculator.get_area(ut_corners)
+    #ut_area = Polygon.get_area(ut_corners)
     #print len(ut_area)
 
     # tiles that are of a single solid color (we can save space!)
