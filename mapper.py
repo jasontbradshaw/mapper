@@ -574,13 +574,8 @@ class Polygon:
         """
 
         # don't bother with calculations for corner cases
-        if len(vertices) == 0:
-            return
-        if len(vertices) == 1:
-            yield copy.copy(vertices[0])
-            return
-        elif len(vertices) == 2:
-            for point in Polygon.generate_line(vertices[0], vertices[1]):
+        if len(vertices) <= 2:
+            for point in Polygon.generate_polygon(vertices):
                 yield point
             return
 
