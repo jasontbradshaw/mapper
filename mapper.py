@@ -622,8 +622,7 @@ class Polygon:
         # NOTE: we now have a list of all the edges' points paired with bounds
 
         # create a new map for vertices so we can find them by their hash
-        hashed_vertices = set()
-        [hashed_vertices.add(hash(v)) for v in vertices]
+        hashed_vertices = set(map(hash, vertices))
 
         # scan from top to bottom, generating scanlines
         bounds = Bounds.get_bounds(*vertices)
