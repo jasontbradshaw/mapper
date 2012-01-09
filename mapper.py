@@ -627,9 +627,8 @@ class Polygon:
         # scan from top to bottom, generating scanlines
         bounds = Bounds.get_bounds(*vertices)
 
-        # use just one tile object for scanning to save creating lots of tiles
+        # scan left-right (starting from known empty points), intersecting
         for y in xrange(bounds.top[1], bounds.bottom[1] + 1):
-            # scan left-right (starting from known empty points), intersecting
             intersections = []
             print "intersecting at y=" + str(y) + ":"
             for x in xrange(bounds.left[0], bounds.right[0] + 1):
@@ -649,16 +648,17 @@ class Polygon:
                             edge_bounds.top[1] > p[1]):
                         continue
 
-
                     on_edge = p_hash in edge_points
                     if on_edge:
                         print "intersection:", p
-                        # store the tile away as an intersecting tile
+                        # store the point away as an intersecting point
                         intersected_edges.append((edge, p))
 
                 # de-dupe certain intersections
                 if len(intersected_edges) > 1:
                     print "de-duping"
+                    # we only de-dupe two points, since we don't expect to get
+                    # complex polygons.
                     (i1_bounds, i1_edge), i1_point = intersected_edges[0]
                     (i2_bounds, i2_edge), i2_point = intersected_edges[1]
 
@@ -670,7 +670,7 @@ class Polygon:
                                 i1_bounds.top[1] == i2_bounds.top[1]):
                             intersected_edges = intersected_edges[0:2]
 
-                # add remaining de-duped tiles
+                # add remaining de-duped points
                 [intersections.append(p) for _, p in intersected_edges]
 
             print
