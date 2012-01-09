@@ -147,9 +147,7 @@ class Tile:
         Creates a tile from Mercator coordinates and returns it.
         """
 
-        if tile_size is None:
-            tile_size = Tile.DEFAULT_TILE_SIZE
-
+        tile_size = Tile.DEFAULT_TILE_SIZE if tile_size is None else tile_size
         return Tile(Tile.KIND_MERCATOR, latitude, longitude, zoom, tile_size)
 
     @staticmethod
@@ -158,9 +156,7 @@ class Tile:
         Creates a tile from Google coordinates and returns it.
         """
 
-        if tile_size is None:
-            tile_size = Tile.DEFAULT_TILE_SIZE
-
+        tile_size = Tile.DEFAULT_TILE_SIZE if tile_size is None else tile_size
         return Tile(Tile.KIND_GOOGLE, x, y, zoom, tile_size)
 
     def download(self, tile_type):
@@ -701,7 +697,6 @@ if __name__ == "__main__":
         (5, 5),
         (0, 5)
     ]
-
     pprint(Polygon.get_area(points))
 
     # these tiles represent roughly the UT Austin campus
