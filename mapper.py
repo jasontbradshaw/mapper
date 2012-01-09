@@ -686,7 +686,6 @@ class Polygon:
         return [point for point in Polygon.generate_area(vertices)]
 
 if __name__ == "__main__":
-    import pdb
     from pprint import pprint
 
     tile_m = Tile.from_mercator(30.2832, -97.7362, 18)
