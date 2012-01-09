@@ -2,6 +2,7 @@
 
 import collections
 import copy
+import itertools
 from math import pi, atan, exp, sin, log
 import os
 import Queue as queue
@@ -452,6 +453,23 @@ class Polygon:
         raise NotImplemented(self.__class__.__name__ + " can't be instantiated")
 
     @staticmethod
+    def __cycle(iterable, skip=1):
+        """
+        cycle([1, 2, 3], 1) -> 2, 3, 1, 2, 3, ...
+        Returns a generator that yields the elements of an iterable in a cycle,
+        starting by skipping the first 'skip' items.
+        """
+
+        # don't cycle for empty iterables
+        if len(iterable) == 0:
+            return
+
+        i = skip
+        while 1:
+            yield iterable[i]
+            i = (i + 1) % len(iterable)
+
+    @staticmethod
     def generate_line(a, b):
         """
         Rasterizes the line between the given points, and yields them all
@@ -566,7 +584,8 @@ class Polygon:
     def generate_area(vertices):
         """
         Generates all the points on the rasterized polygon described by a list
-        of vertices and yields them in arbitrary order.
+        of vertices and yields them in arbitrary order. Polygons are assumed to
+        have non-overlappind edges.
         """
 
         # don't bother with calculations for corner cases
@@ -575,50 +594,22 @@ class Polygon:
                 yield point
             return
 
-        # add all the edges to a list of sets, for fast line intersection
-        edges = []
+        # map points on edges to collections of their line boundaries
+        edge_points = collections.defaultdict(list)
 
-        # vertices of the edge
-        v0 = None
-        v1 = None
+        # iterate over the sequentially paired vertices, indcluding (last, first)
+        for a, b in itertools.izip(vertices, Polygon.__cycle(vertices, 1)):
+            # find the boundaries of this line
+            bounds = Bounds.get_bounds(a, b)
 
-        # collect points for each edge
-        edge = set()
-        for point in Polygon.generate_polygon(vertices, True):
-            # add an edge when we encounter a separator (only encountered after)
-            if point is None:
-                # find our edge bounds
-                edge_bounds = Bounds.get_bounds(v0, v1)
+            # add only non-horizontal edges
+            if bounds.top[1] != bounds.bottom[1]:
+                # map each point on the line to a list of line bounds
+                for point in Polygon.generate_line(a, b):
+                    edge_points[point].append(bounds)
 
-                # only keep non-horizontal edges
-                if edge_bounds.top[1] != edge_bounds.bottom[1]:
-                    # append a tuple of bounds and edge point hashes
-                    edges.append((edge_bounds, edge))
-
-                # reset
-                edge = set()
-                v0 = None
-                v1 = None
-
-                continue
-
-            # always collect the point, so the final value is the second vertex
-            v1 = point
-
-            # save the first vertex
-            if len(edge) == 0:
-                v0 = point
-
-            # add the point to the edge (as a hash, to save memory)
-            edge.add(hash(point))
-
-        # sort edges left-to-right
-        edges.sort(key=lambda e: e[0].left[0])
-
-        # NOTE: we now have a list of all the edges' points paired with bounds
-
-        # create a new map for vertices so we can find them by their hash
-        hashed_vertices = set(map(hash, vertices))
+        # make the dict behave as a normal dictionary
+        edge_points.default_factory = None
 
         # scan from top to bottom, generating scanlines
         bounds = Bounds.get_bounds(*vertices)
@@ -633,45 +624,35 @@ class Polygon:
                 p = (x, y)
                 p_hash = hash(p)
 
-                # when we find an intersection, store it
-                intersections = []
-                for edge_bounds, edge_points in edges:
-                    # skip edges we can't intersect with
-                    if (edge_bounds.right[0] < p[0] or
-                            edge_bounds.left[0] > p[0] or
-                            edge_bounds.bottom[1] < p[1] or
-                            edge_bounds.top[1] > p[1]):
-                        continue
-
-                    # if we're on a line, store the point as an intersection
-                    if p_hash in edge_points:
-                        intersections.append((edge_bounds, p))
-
                 # yield points between intersecting edges
-                if inside and len(intersections) == 0:
+                if inside:
                     yield p
-                    continue
 
-                # de-dupe certain intersections
-                if len(intersections) > 1:
-                    # we only de-dupe two points, since we don't expect to get
-                    # complex polygons.
-                    i1_bounds, i1_point = intersections[0]
-                    i2_bounds, i2_point = intersections[1]
+                # if we're on a line, store the point as an intersection
+                if p_hash in edge_points:
+                    edge_bounds = edge_points[p_hash]
 
-                    # condense down to a single intersection if we didn't meet
-                    # in a 'v' or '^' shape and we were on a vertex.
-                    if (hash(i1_point) in hashed_vertices and
-                            hash(i2_point) in hashed_vertices):
+                    # de-dupe certain intersections
+                    if len(edge_bounds) > 1:
+                        # we only de-dupe two points (no complex polygons)
+                        i1_bounds = edge_bounds[0]
+                        i2_bounds = edge_bounds[1]
+
+                        # condense down to a single intersection if we didn't
+                        # meet in a 'v' or '^' shape and we were on a vertex.
                         if not (i1_bounds.bottom[1] == i2_bounds.bottom[1] or
                                 i1_bounds.top[1] == i2_bounds.top[1]):
-                            intersections = [(i1_bounds, i1_point)]
+                            edge_bounds = [i1_bounds]
+                        else:
+                            # constrain to two intersections otherwise
+                            edge_bounds = [i1_bounds, i2_bounds]
 
-                # yield de-duped points
-                for _, point in intersections:
+                    # yield first inside point if crossing in from outside
+                    if not inside:
+                        yield p
+
                     # move from inside to outside every time we cross an edge
-                    inside = not inside
-                    yield point
+                    inside = not inside and len(edge_bounds) % 2 != 0
 
     @staticmethod
     def get_area(vertices):
