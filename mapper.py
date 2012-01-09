@@ -620,8 +620,9 @@ if __name__ == "__main__":
     # these tiles represent roughly the UT Austin campus
     ut_corners = [
         Tile.from_google(59902, 107915, 18),
-        Tile.from_google(59902, 107919, 18),
-        Tile.from_google(59906, 107919, 18)
+        Tile.from_google(59906, 107915, 18),
+        Tile.from_google(59906, 107919, 18),
+        Tile.from_google(59902, 107919, 18)
     ]
 
     # all the tiles in the area encompassed by the corners
