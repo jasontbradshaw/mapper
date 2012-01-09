@@ -620,17 +620,16 @@ class Polygon:
             # keep track of whether we're inside the polygon as we scan
             inside = False
             for x in xrange(bounds.left[0], bounds.right[0] + 1):
-                # get the hash of the current coordinates
+                # get the current coordinates
                 p = (x, y)
-                p_hash = hash(p)
 
                 # yield points between intersecting edges
                 if inside:
                     yield p
 
                 # if we're on a line, store the point as an intersection
-                if p_hash in edge_points:
-                    edge_bounds = edge_points[p_hash]
+                if p in edge_points:
+                    edge_bounds = edge_points[p]
 
                     # de-dupe certain intersections
                     if len(edge_bounds) > 1:
