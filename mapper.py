@@ -629,18 +629,17 @@ class Polygon:
 
         # scan left-right (starting from known empty points), intersecting
         for y in xrange(bounds.top[1], bounds.bottom[1] + 1):
-            intersections = []
-            print "intersecting at y=" + str(y) + ":"
+
+            # keep track of whether we're inside the polygon as we scan
+            inside = False
             for x in xrange(bounds.left[0], bounds.right[0] + 1):
                 # get the hash of the current coordinates
                 p = (x, y)
                 p_hash = hash(p)
 
                 # when we find an intersection, store it
-                intersected_edges = []
-                for edge in edges:
-                    edge_bounds, edge_points = edge
-
+                intersections = []
+                for edge_bounds, edge_points in edges:
                     # skip edges we can't intersect with
                     if (edge_bounds.right[0] < p[0] or
                             edge_bounds.left[0] > p[0] or
@@ -648,19 +647,21 @@ class Polygon:
                             edge_bounds.top[1] > p[1]):
                         continue
 
-                    on_edge = p_hash in edge_points
-                    if on_edge:
-                        print "intersection:", p
-                        # store the point away as an intersecting point
-                        intersected_edges.append((edge, p))
+                    # if we're on a line, store the point as an intersection
+                    if p_hash in edge_points:
+                        intersections.append((edge_bounds, p))
+
+                # yield points between intersecting edges
+                if inside and len(intersections) == 0:
+                    yield p
+                    continue
 
                 # de-dupe certain intersections
-                if len(intersected_edges) > 1:
-                    print "de-duping"
+                if len(intersections) > 1:
                     # we only de-dupe two points, since we don't expect to get
                     # complex polygons.
-                    (i1_bounds, i1_edge), i1_point = intersected_edges[0]
-                    (i2_bounds, i2_edge), i2_point = intersected_edges[1]
+                    i1_bounds, i1_point = intersections[0]
+                    i2_bounds, i2_point = intersections[1]
 
                     # condense down to a single intersection if we didn't meet
                     # in a 'v' or '^' shape and we were on a vertex.
@@ -668,12 +669,13 @@ class Polygon:
                             hash(i2_point) in hashed_vertices):
                         if not (i1_bounds.bottom[1] == i2_bounds.bottom[1] or
                                 i1_bounds.top[1] == i2_bounds.top[1]):
-                            intersected_edges = intersected_edges[0:2]
+                            intersections = [(i1_bounds, i1_point)]
 
-                # add remaining de-duped points
-                [intersections.append(p) for _, p in intersected_edges]
-
-            print
+                # yield de-duped points
+                for _, point in intersections:
+                    # move from inside to outside every time we cross an edge
+                    inside = not inside
+                    yield point
 
     @staticmethod
     def get_area(vertices):
@@ -701,7 +703,7 @@ if __name__ == "__main__":
         (0, 5)
     ]
 
-    Polygon.get_area(points)
+    pprint(Polygon.get_area(points))
 
     # these tiles represent roughly the UT Austin campus
     ut_corners = [
