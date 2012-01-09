@@ -519,68 +519,6 @@ class Polygon:
         return [point for point in Polygon.generate_line(a, b)]
 
     @staticmethod
-    def generate_polygon(vertices, use_separator=False):
-        """
-        Generates the points in a polygon from the internal vertices from the
-        first pair to the pair formed from the last and first vertices. If
-        use_separator is True, None is yielded as a delimiter after every line,
-        and no vertex de-duplicating takes place, otherwise each vertex is only
-        yielded once.
-        """
-
-        # yield lines between consecutive vertices
-        prev_v = None
-        for v in vertices:
-            # yield the very first vertex (it normally gets skipped)
-            if prev_v is None:
-                if not use_separator:
-                    yield v
-                prev_v = v
-                continue
-
-            # yield all the points on the line
-            first = True
-            for point in Polygon.generate_line(prev_v, v):
-                # if not using a separator, skip the first point, the previous
-                # vertex itself
-                if not use_separator and first:
-                    first = False
-                    continue
-
-                yield point
-
-            # yield a special separator between lines if requested
-            if use_separator:
-                yield None
-
-            prev_v = v
-
-        # connect ends if and we have more than just a point or a line
-        if len(vertices) > 2:
-            # connect the last vertex to the first, leaving out the endpoints
-            first = True
-            for point in Polygon.generate_line(prev_v, vertices[0]):
-                # don't yield the first or last vertices if not separating
-                if not use_separator and (first or point == vertices[0]):
-                    first = False
-                    continue
-
-                yield point
-
-            # yield a final separator if necessary
-            if use_separator:
-                yield None
-
-    @staticmethod
-    def get_polygon(vertices, use_separator=False):
-        """
-        Same as generate_polygon(), but returns a list rather than a generator.
-        """
-
-        return [point for point in Polygon.generate_polygon(vertices,
-            use_separator)]
-
-    @staticmethod
     def generate_area(vertices):
         """
         Generates all the points on the rasterized polygon described by a list
