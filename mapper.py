@@ -43,8 +43,8 @@ def download(tile_type, tiles, tile_store, num_threads=10):
     # wait for all the threads to finish
     [thread.join() for thread in threads]
 
-def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
-        timeout=0.1, max_failures=3):
+def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout=0.1,
+        max_failures=3):
     """
     Downloads all the tiles in the given queue for the given type and stores
     them in the tile store. Will re-insert failed downloads into the queue
