@@ -55,6 +55,18 @@ def download(tile_type, tiles, tile_store, num_threads=10):
     # wait for all the threads to finish
     [thread.join() for thread in threads]
 
+def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10):
+    """
+    Download tiles formed from the area described by the given tile vertices.
+    vertices should be an in-order list of tiles describing the sequential
+    vertices of a non-complex polygon, preferrably with accurate Mercator
+    coordinates (these translate between zoom levels best). zoom_levels is a
+    list of zoom levels to download. See download() for an explanation of the
+    other parameters.
+    """
+
+    raise NotImplemented()
+
 def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
         timeout=0.1, max_failures=3):
     """
