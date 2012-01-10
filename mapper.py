@@ -337,39 +337,57 @@ class TileDownloader:
         self.tile_store = tile_store
 
     def download(self, tile_type, tiles, num_threads=10):
-        """Downloads some tiles using the given type."""
+        """Downloads some tiles from an iterable using the given type."""
 
-        # put all our tiles into a queue so all threads can share them
+        # the queue our threads will pull tiles from
         tile_queue = queue.Queue()
-        [tile_queue.put(tile) for tile in tiles]
 
-        # assign threads their respective tile lists
+        # start our threads; they will wait a bit for tiles to download
         thread_pool = []
         for i in xrange(num_threads):
             thread = threading.Thread(target=self.download_tiles,
-                    args=(tile_type, tile_queue))
+                    args=(tile_type, tile_queue, 0.1, 3))
+            thread.daemon = True
             thread_pool.append(thread)
             thread.start()
+
+        # feed tiles to the waiting threads as (tile, number of download fails)
+        [tile_queue.put((tile, 0)) for tile in tiles]
+
+        # wait for all the queue's tiles to be processed
+        tile_queue.join()
 
         # wait for all the threads to finish
         [thread.join() for thread in thread_pool]
 
-    def download_tiles(self, tile_type, tile_queue):
+    def download_tiles(self, tile_type, tile_queue, timeout=0.1, max_failures=3):
         """
         Downloads all the tiles in the given queue for the given type and stores
-        them in the tile store.
+        them in the tile store. Will re-insert failed downloads into the queue
+        for later processing.
         """
 
         while 1:
             try:
-                tile = tile_queue.get_nowait()
+                # wait a bit for data to show up
+                tile, fail_count = tile_queue.get(True, timeout)
                 tile_data = tile.download(tile_type)
 
+                # deal with download failures
                 if tile_data is None:
-                    raise IOError("Could not download tile " + str(tile) +
-                            " as type " + tile_type)
+                    # retry if we haven't yet exceeded the max
+                    if fail_count < max_failures:
+                        tile_queue.put_nowait((tile, fail_count + 1))
+                    # give up otherwise
+                    else:
+                        print ("Could not download tile " + str(tile) +
+                                " as type " + tile_type)
+                else:
+                    # store the downloaded tile
+                    self.tile_store.store(tile_type, tile, tile_data)
 
-                self.tile_store.store(tile_type, tile, tile_data)
+                # signal that we finished processing this tile
+                tile_queue.task_done()
             except queue.Empty:
                 break
 
