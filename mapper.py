@@ -25,8 +25,8 @@ def download(tile_type, tiles, tile_store, num_threads=10):
     if num_threads <= 0:
         raise ValueError("num_threads must be greater than 0")
 
-    # the queue our threads will pull tiles from
-    tile_queue = queue.Queue(num_threads * 10)
+    # the queue our threads will pull tiles from (un-failed tiles first)
+    tile_queue = queue.PriorityQueue(num_threads * 10)
 
     # start our threads; they will wait a bit for tiles to download
     threads = []
@@ -37,11 +37,11 @@ def download(tile_type, tiles, tile_store, num_threads=10):
         threads.append(thread)
         thread.start()
 
-    # feed tiles to the waiting threads as (tile, number of download fails)
+    # feed tiles to the waiting threads as (number of download fails, tile)
     for tile in tiles:
         # attempt to fill the queue, but do so in a way that will allow worker
         # threads to re-insert failed tiles periodically.
-        item = (tile, 0)
+        item = (0, tile)
         while 1:
             try:
                 tile_queue.put(item, True, 1)
@@ -80,7 +80,7 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
     while 1:
         try:
             # wait a bit for data to show up
-            tile, fail_count = tile_queue.get(True, timeout)
+            fail_count, tile = tile_queue.get(True, timeout)
             tile_data = tile.download(tile_type)
 
             # deal with download failures
@@ -91,7 +91,7 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
                     # if all threads simultaneously arrive at a failed tile and
                     # then the queue fills up, there will be nobody to make more
                     # room in the queue.
-                    tile_queue.put((tile, fail_count + 1))
+                    tile_queue.put((fail_count + 1, tile))
                 else:
                     # give up otherwise
                     print ("Could not download tile " + str(tile) +
