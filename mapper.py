@@ -315,9 +315,10 @@ class MongoTileStore(TileStore):
         self.collection = self.db[collection]
 
     def store(self, tile_type, tile, tile_data):
-        assert isinstance(tile_type, Tile.TileType)
-        assert isinstance(tile, Tile)
-        assert isinstance(tile_data, basestring)
+        """
+        Store the tile in the database with a Unix update time in seconds. If a
+        tile with the same data already exists, update it accordingly.
+        """
 
         # start with base information so we can use it to find existing tiles
         tile = {
