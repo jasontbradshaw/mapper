@@ -35,7 +35,7 @@ def download(tile_type, tiles, tile_store, num_threads=10):
 
     # feed tiles to the waiting threads as (tile, number of download fails)
     for tile in tiles:
-        tile_queue.put((tile, 0))
+        tile_queue.put_nowait((tile, 0))
 
     # wait for all the queue's tiles to be processed
     tile_queue.join()
