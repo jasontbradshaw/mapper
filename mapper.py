@@ -48,7 +48,7 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
     """
     Downloads all the tiles in the given queue for the given type and stores
     them in the tile store. Will re-insert failed downloads into the queue
-    for later processing.
+    for later processing, but only up to max_failures times.
     """
 
     while 1:
@@ -62,8 +62,8 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
                 # retry if we haven't yet exceeded the max
                 if fail_count < max_failures:
                     tile_queue.put_nowait((tile, fail_count + 1))
-                # give up otherwise
                 else:
+                    # give up otherwise
                     print ("Could not download tile " + str(tile) +
                             " as type " + tile_type)
             else:
@@ -646,8 +646,8 @@ if __name__ == "__main__":
 
     tile_m = Tile.from_mercator(30.2832, -97.7362, 18)
     tile_g = Tile.from_google(59902, 107915, 18)
-    #print "Mercator:", tile_m.latitude, tile_m.longitude, tile_m.zoom
-    #print "Google:", tile_g.x, tile_g.y, tile_g.zoom
+    print "Mercator:", tile_m.latitude, tile_m.longitude, tile_m.zoom
+    print "Google:", tile_g.x, tile_g.y, tile_g.zoom
     assert tile_m == tile_g
 
     # get us an area and make sure it contains no duplicate tiles
