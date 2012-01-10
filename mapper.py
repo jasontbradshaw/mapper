@@ -75,7 +75,10 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
             if tile_data is None:
                 # retry if we haven't yet exceeded the max
                 if fail_count < max_failures:
-                    # TODO: there might be a dining-philosophers condition here
+                    # TODO: there might be a dining-philosophers condition here.
+                    # if all threads simultaneously arrive at a failed tile and
+                    # then the queue fills up, there will be nobody to make more
+                    # room in the queue.
                     tile_queue.put((tile, fail_count + 1))
                 else:
                     # give up otherwise
