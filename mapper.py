@@ -21,8 +21,12 @@ def download(tile_type, tiles, tile_store, num_threads=10):
     download tiles.
     """
 
+    # check our thread count to make sure we'll get workers
+    if num_threads <= 0:
+        raise ValueError("num_threads must be greater than 0")
+
     # the queue our threads will pull tiles from
-    tile_queue = queue.Queue()
+    tile_queue = queue.Queue(num_threads * 10)
 
     # start our threads; they will wait a bit for tiles to download
     threads = []
@@ -35,7 +39,15 @@ def download(tile_type, tiles, tile_store, num_threads=10):
 
     # feed tiles to the waiting threads as (tile, number of download fails)
     for tile in tiles:
-        tile_queue.put_nowait((tile, 0))
+        # attempt to fill the queue, but do so in a way that will allow worker
+        # threads to re-insert failed tiles periodically.
+        item = (tile, 0)
+        while 1:
+            try:
+                tile_queue.put(item, True, 1)
+                break
+            except queue.Full:
+                continue
 
     # wait for all the queue's tiles to be processed
     tile_queue.join()
@@ -43,12 +55,14 @@ def download(tile_type, tiles, tile_store, num_threads=10):
     # wait for all the threads to finish
     [thread.join() for thread in threads]
 
-def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout=0.1,
-        max_failures=3):
+def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
+        timeout=0.1, max_failures=3):
     """
-    Downloads all the tiles in the given queue for the given type and stores
-    them in the tile store. Will re-insert failed downloads into the queue
-    for later processing, but only up to max_failures times.
+    Downloads all the tiles in a queue for some type and stores them in the tile
+    store. Will re-insert failed downloads into the queue for later processing,
+    but only up to max_failures times. timeout specifies the amount of time in
+    seconds downloading threads will wait for new tiles to enter the queue
+    before giving up and ending their download loops.
     """
 
     while 1:
@@ -61,7 +75,8 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout=0.1,
             if tile_data is None:
                 # retry if we haven't yet exceeded the max
                 if fail_count < max_failures:
-                    tile_queue.put_nowait((tile, fail_count + 1))
+                    # TODO: there might be a dining-philosophers condition here
+                    tile_queue.put((tile, fail_count + 1))
                 else:
                     # give up otherwise
                     print ("Could not download tile " + str(tile) +
