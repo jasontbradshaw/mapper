@@ -360,8 +360,8 @@ class TileDownloader:
         # start our threads; they will wait a bit for tiles to download
         thread_pool = []
         for i in xrange(num_threads):
-            thread = threading.Thread(target=self.download_tiles,
-                    args=(tile_type, tile_queue, 0.1, 3))
+            thread = threading.Thread(target=self.__download_tiles_from_queue,
+                    args=(tile_type, tile_queue, self.tile_store, 0.1, 3))
             thread.daemon = True
             thread_pool.append(thread)
             thread.start()
@@ -375,7 +375,8 @@ class TileDownloader:
         # wait for all the threads to finish
         [thread.join() for thread in thread_pool]
 
-    def download_tiles(self, tile_type, tile_queue, timeout=0.1, max_failures=3):
+    def __download_tiles_from_queue(self, tile_type, tile_queue, tile_store,
+            timeout=0.1, max_failures=3):
         """
         Downloads all the tiles in the given queue for the given type and stores
         them in the tile store. Will re-insert failed downloads into the queue
@@ -399,7 +400,7 @@ class TileDownloader:
                                 " as type " + tile_type)
                 else:
                     # store the downloaded tile
-                    self.tile_store.store(tile_type, tile, tile_data)
+                    tile_store.store(tile_type, tile, tile_data)
 
                 # signal that we finished processing this tile
                 tile_queue.task_done()
