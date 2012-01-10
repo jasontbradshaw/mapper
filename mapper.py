@@ -14,6 +14,66 @@ import urllib2
 import pymongo
 import bson
 
+def download(tile_type, tiles, tile_store, num_threads=10):
+    """
+    Downloads some tiles in parallel from an iterable using the given type.
+    num_threads is the number of simultaneous threads that will be used to
+    download tiles.
+    """
+
+    # the queue our threads will pull tiles from
+    tile_queue = queue.Queue()
+
+    # start our threads; they will wait a bit for tiles to download
+    threads = []
+    for i in xrange(num_threads):
+        thread = threading.Thread(target=__download_tiles_from_queue,
+                args=(tile_type, tile_queue, tile_store, 0.1, 3))
+        thread.daemon = True
+        threads.append(thread)
+        thread.start()
+
+    # feed tiles to the waiting threads as (tile, number of download fails)
+    [tile_queue.put((tile, 0)) for tile in tiles]
+
+    # wait for all the queue's tiles to be processed
+    tile_queue.join()
+
+    # wait for all the threads to finish
+    [thread.join() for thread in threads]
+
+def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
+        timeout=0.1, max_failures=3):
+    """
+    Downloads all the tiles in the given queue for the given type and stores
+    them in the tile store. Will re-insert failed downloads into the queue
+    for later processing.
+    """
+
+    while 1:
+        try:
+            # wait a bit for data to show up
+            tile, fail_count = tile_queue.get(True, timeout)
+            tile_data = tile.download(tile_type)
+
+            # deal with download failures
+            if tile_data is None:
+                # retry if we haven't yet exceeded the max
+                if fail_count < max_failures:
+                    tile_queue.put_nowait((tile, fail_count + 1))
+                # give up otherwise
+                else:
+                    print ("Could not download tile " + str(tile) +
+                            " as type " + tile_type)
+            else:
+                # store the downloaded tile
+                tile_store.store(tile_type, tile, tile_data)
+
+            # signal that we finished processing this tile
+            tile_queue.task_done()
+        except queue.Empty:
+            break
+
 class Tile:
     """
     A tile representing both Mercator and Google Maps versions of the same info,
@@ -345,68 +405,6 @@ class MongoTileStore(TileStore):
         # add our tile to the collection, updating if the '_id' is set
         self.collection.save(tile)
 
-class TileDownloader:
-    """Downloads map tiles using multiple threads."""
-
-    def __init__(self, tile_store):
-        self.tile_store = tile_store
-
-    def download(self, tile_type, tiles, num_threads=10):
-        """Downloads some tiles from an iterable using the given type."""
-
-        # the queue our threads will pull tiles from
-        tile_queue = queue.Queue()
-
-        # start our threads; they will wait a bit for tiles to download
-        thread_pool = []
-        for i in xrange(num_threads):
-            thread = threading.Thread(target=self.__download_tiles_from_queue,
-                    args=(tile_type, tile_queue, self.tile_store, 0.1, 3))
-            thread.daemon = True
-            thread_pool.append(thread)
-            thread.start()
-
-        # feed tiles to the waiting threads as (tile, number of download fails)
-        [tile_queue.put((tile, 0)) for tile in tiles]
-
-        # wait for all the queue's tiles to be processed
-        tile_queue.join()
-
-        # wait for all the threads to finish
-        [thread.join() for thread in thread_pool]
-
-    def __download_tiles_from_queue(self, tile_type, tile_queue, tile_store,
-            timeout=0.1, max_failures=3):
-        """
-        Downloads all the tiles in the given queue for the given type and stores
-        them in the tile store. Will re-insert failed downloads into the queue
-        for later processing.
-        """
-
-        while 1:
-            try:
-                # wait a bit for data to show up
-                tile, fail_count = tile_queue.get(True, timeout)
-                tile_data = tile.download(tile_type)
-
-                # deal with download failures
-                if tile_data is None:
-                    # retry if we haven't yet exceeded the max
-                    if fail_count < max_failures:
-                        tile_queue.put_nowait((tile, fail_count + 1))
-                    # give up otherwise
-                    else:
-                        print ("Could not download tile " + str(tile) +
-                                " as type " + tile_type)
-                else:
-                    # store the downloaded tile
-                    tile_store.store(tile_type, tile, tile_data)
-
-                # signal that we finished processing this tile
-                tile_queue.task_done()
-            except queue.Empty:
-                break
-
 class Bounds:
     """
     A class representing the bounding box of some points. It holds the top-most,
@@ -701,8 +699,9 @@ if __name__ == "__main__":
         Tile.from_google(59906, 107919, 18)
     ]
 
-    #ut_area = Polygon.get_area(ut_corners)
-    #print len(ut_area)
+    ut_area = Polygon.get_area(map(lambda t: (t.x, t.y), ut_corners))
+    pprint(ut_area)
+    assert set(ut_area) ^ set(map(lambda t: (t.x, t.y), ut_tiles)) == set()
 
     # tiles that are of a single solid color (we can save space!)
     uniform_tiles = [
@@ -712,8 +711,5 @@ if __name__ == "__main__":
         Tile.from_google(1677, 3306, 13) # feature (military, airports, others?)
     ]
 
-    #downloader = TileDownloader(MongoTileStore())
-    #downloader.download(Tile.TYPE_MAP, ut_tiles)
-
-    #downloader = TileDownloader(FileTileStore())
-    #downloader.download(Tile.TYPE_OVERLAY, uniform_tiles)
+    #download(Tile.TYPE_MAP, ut_tiles, MongoTileStore())
+    #download(Tile.TYPE_MAP, uniform_tiles, FileTileStore())
