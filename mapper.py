@@ -527,8 +527,12 @@ class Polygon:
         """
 
         # don't bother with calculations for corner cases
-        if len(vertices) <= 2:
-            for point in Polygon.generate_polygon(vertices):
+        if len(vertices) <= 1:
+            for v in vertices:
+                yield v
+            return
+        elif len(vertices) == 2:
+            for point in Polygon.generate_line(vertices):
                 yield point
             return
 
