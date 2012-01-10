@@ -244,6 +244,9 @@ class TileStore:
     tile data and stores it however the class chooses.
     """
 
+    def __init__(self, *args, **kwargs):
+        raise NotImplemented(self.__class__.__name__ + " can't be instantiated")
+
     def store(self, tile_type, tile, tile_data):
         """
         Stores a single tile in the store however the class chooses. This method
@@ -252,17 +255,31 @@ class TileStore:
 
         raise NotImplemented("Implement this in your own subclass!")
 
-class FileTileStore:
+class FileTileStore(TileStore):
     """
     Stores tiles in a directory on the local file system.
     """
 
-    def __init__(self, directory=time.strftime("tiles_%Y%m%d_%H%M%S")):
+    def __init__(self, directory=time.strftime("tiles_%Y%m%d_%H%M%S"),
+            name_generator=None):
         """
         Creates a tile store that writes files to a given directory. If the
         directory doesn't exist, it creates it. A default time-based directory
-        name is used if none is provided.
+        name is used if none is provided. name_generator is a callable that takes
+        a tile and a tile type and returns a file name. If unspecified, a
+        default is used.
         """
+
+        def default_name_generator(tile, tile_type):
+            return (tile_type.v + "_" +
+                    str(tile.x) + "-" +
+                    str(tile.y) + "-" +
+                    str(tile.zoom))
+
+        # store the method for generating file names
+        self.name_generator = name_generator
+        if name_generator is None:
+            self.name_generator = default_name_generator
 
         self.directory = os.path.abspath(directory)
 
@@ -280,10 +297,7 @@ class FileTileStore:
         """
 
         # build a file name containing descriptive data
-        fname = (tile_type.v + "_" +
-                str(tile.x) + "-" +
-                str(tile.y) + "-" +
-                str(tile.zoom))
+        fname = self.name_generator(tile, tile_type)
 
         # write the file into our directory, overwriting existing files
         with open(os.path.join(self.directory, fname), "w") as f:
