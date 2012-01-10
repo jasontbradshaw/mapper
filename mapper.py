@@ -523,8 +523,15 @@ class Polygon:
         """
         Generates all the points on the rasterized polygon described by a list
         of vertices and yields them in arbitrary order. Polygons are assumed to
-        have non-overlappind edges.
+        have non-overlappind edges. Runs of identical vertices are collapsed
+        into a single value.
         """
+
+        # collapse adjacent duplicate vertices
+        new_vertices = []
+        for v in vertices:
+            if len(new_vertices) == 0 or new_vertices[-1] != v:
+                new_vertices.append(v)
 
         # don't bother with calculations for corner cases
         if len(vertices) <= 1:
