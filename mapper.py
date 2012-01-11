@@ -65,7 +65,21 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10):
     other parameters.
     """
 
-    raise NotImplemented()
+    for z in zoom_levels:
+        # translate vertices to the given zoom level, then to coordinate pairs
+        points = []
+        for v in vertices:
+            zoomed_v = Tile.from_mercator(v.latitude, v.longitude, z)
+            points.append((zoomed_v.x, zoomed_v.y))
+
+        # get the area for the points
+        area = Polygon.generate_area(points)
+
+        # convert points back in to tiles
+        area_tiles = (Tile.from_google(p[0], p[1], z) for p in area)
+
+        # download all the tiles in the area for this zoom level
+        download(tile_type, area_tiles, tile_store)
 
 def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
         timeout=0.1, max_failures=3):
@@ -745,3 +759,4 @@ if __name__ == "__main__":
 
     #download(Tile.TYPE_MAP, ut_tiles, MongoTileStore())
     #download(Tile.TYPE_MAP, uniform_tiles, FileTileStore())
+    #download_area(Tile.TYPE_MAP, ut_corners, FileTileStore(), range(20))
