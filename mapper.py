@@ -25,7 +25,7 @@ def download(tile_type, tiles, tile_store, num_threads=10):
     if num_threads <= 0:
         raise ValueError("num_threads must be greater than 0")
 
-    # the queue our threads will pull tiles from (un-failed tiles first)
+    # the queue our threads will pull tiles from (least-failed tiles first)
     tile_queue = queue.PriorityQueue(num_threads * 10)
 
     # start our threads; they will wait a bit for tiles to download
