@@ -589,10 +589,11 @@ class Polygon:
         """
 
         # collapse adjacent duplicate vertices
-        new_vertices = []
+        collapsed_vertices = []
         for v in vertices:
-            if len(new_vertices) == 0 or new_vertices[-1] != v:
-                new_vertices.append(v)
+            if len(collapsed_vertices) == 0 or collapsed_vertices[-1] != v:
+                collapsed_vertices.append(v)
+        vertices = collapsed_vertices
 
         # don't bother with calculations for corner cases
         if len(vertices) <= 1:
