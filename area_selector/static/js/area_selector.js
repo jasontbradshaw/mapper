@@ -12,7 +12,7 @@ var setupMap = function () {
         zoom: 2,
         mapTypeId: google.maps.MapTypeId.ROADMAP,
 
-        // customize the UI
+        // pare the UI down to the bare necessities
         disableDefaultUI: true,
         panControl: true,
         zoomControl: true,
