@@ -1,11 +1,51 @@
 $(function () {
     // force less.js to stop caching files while developing!
     destroyLessCache("css");
-    var map = setupMap();
+
+    // keep track of currently active polygons
     var polygons = [];
-    setupPolygon(map, polygons);
+
+    // keep track of currently pressed keys
+    var pressedKeys = setupKeypressTracker();
+
+    // build the main map
+    var map = setupMap();
+
+    // allow creation of polygons
+    setupPolygon(map, polygons, pressedKeys);
 });
 
+// creates and returns an object that tracks currently pressed keyboard keys
+var setupKeypressTracker = function () {
+    // an object for tracking pressed keys
+    var PressedKeys = function () {
+        this.__map = {};
+
+        this.__addPressed = function (keyCode) {
+            this.__map["key_" + keyCode] = true;
+        };
+
+        this.__removePressed = function (keyCode) {
+            delete this.__map["key_" + keyCode];
+        };
+
+        // returns whether the given keycode is pressed
+        this.isPressed = function (keyCode) {
+            return this.__map.hasOwnProperty("key_" + keyCode);
+        };
+    };
+
+    // create our own instance of the keypress tracker
+    var pressedKeys = new PressedKeys();
+
+    // update it when keys are pressed/released
+    $(window).keydown(function (e) { pressedKeys.__addPressed(e.which); });
+    $(window).keyup(function (e) { pressedKeys.__removePressed(e.which); });
+
+    return pressedKeys;
+};
+
+// initialize the main map
 var setupMap = function () {
     var mapCanvas = $("#map");
 
@@ -26,84 +66,54 @@ var setupMap = function () {
 };
 
 // make clicking create a polygon on the map
-var setupPolygon = function (map, polygons) {
-    // keep track of whether the the collector key key is pressed
-    var collectorKeyCode = 16; // the 'shift' key
-    var collectorKeyEngaged = false;
+var setupPolygon = function (map, polygons, pressedKeys) {
+    // keys for collection points and deleting polygons
+    var collectorKeyCode = 16; // shift
+    var deleteKeyCode = 17; // control
 
-    // track whether we should delete a polygon when clicked
-    var deleteKeyCode = 17; // the 'control' key
-    var deleteKeyEngaged = false;
-
-    // collect coordinates so we can later form a polygon
-    var collectedCoords = [];
-    var collectedMarkers = [];
-
-    $(window).keydown(function (e) {
-        if (e.which === collectorKeyCode) {
-            collectorKeyEngaged = true;
-        }
-
-        if (e.which === deleteKeyCode) {
-            deleteKeyEngaged = true;
-        }
-    });
+    // collect coordinates as a line that we can convert to a polygon later
+    var polyline = null;
 
     $(window).keyup(function (e) {
         // create a polygon when done collecting points
         if (e.which === collectorKeyCode) {
-            collectorKeyEngaged = false;
 
-            // turn the collected coordinates into a polygon
-            if (collectedCoords.length >= 1) {
-
-                // create a new polygon
+            // turn the polyline into a polygon if it's long enough
+            if (polyline.getPath().getLength() > 1) {
+                // create a new polygon on the map from the temporary polyline
                 var polygon = new google.maps.Polygon({
-                    paths: collectedCoords,
+                    map: map,
+                    paths: polyline.getPath(),
                     editable: true,
                 });
 
-                // add it to the map
-                polygon.setMap(map);
-
-                // make double-clicking the polygon remove it
+                // make clicking the polygon with the delete key held remove it
                 google.maps.event.addListener(polygon, "click", function (e) {
-                    // delete the polygon if it was requested
-                    if (deleteKeyEngaged) {
+                    if (pressedKeys.isPressed(deleteKeyCode)) {
                         polygon.setMap(null);
                     }
                 });
-
-                // remove the progress markers
-                for (var i = 0; i < collectedMarkers.length; i++) {
-                    collectedMarkers[i].setMap(null);
-                }
-
-                // clear the coordinates and markers for the next polygon
-                collectedCoords = [];
-                collectedMarkers = [];
             }
-        }
-        // mark that we released the keycode
-        else if (e.which === deleteKeyCode) {
-            deleteKeyEngaged = false;
+
+            // remove the temporary polyline from the map and delete it
+            polyline.setMap(null);
+            polyline = null;
         }
     });
 
+    // build the line if the collect key is held down
     google.maps.event.addListener(map, "click", function (e) {
-        // collect coordinates if desired
-        if (collectorKeyEngaged) {
-            // add a marker where we clicked, to show our progress
-            var marker = new google.maps.Marker({
-                map: map,
-                position: e.latLng,
-                flat: true,
-                title: e.latLng.lat() + ", " + e.latLng.lng(),
-            });
+        if (pressedKeys.isPressed(collectorKeyCode)) {
+            // create the polyline if it doesn't exist yet
+            if (polyline === null) {
+                polyline = new google.maps.Polyline({
+                    map: map,
+                    editable: true,
+                });
+            }
 
-            // store them so we can make a polygon from them later
-            collectedCoords.push(e.latLng);
-            collectedMarkers.push(marker);
+            // add the clicked coordinates to the line
+            polyline.getPath().push(e.latLng);
         }
     });
 };
