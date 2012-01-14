@@ -50,7 +50,10 @@
     padding-left: @padding * 3;
     padding-right: @padding * 3;
 
+    // present this as a static box, with no selecting, highlighting, or clicking
+    cursor: default;
     .user-select(none);
+
     .box-shadow(0, 3px, 7px, 0px, rgb(75, 75, 75));
 }
 
