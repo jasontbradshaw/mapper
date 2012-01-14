@@ -220,10 +220,38 @@ var showMenu = function (selectedPolygon, clickLatLng, mouseTracker) {
     var deletePolygonItem = $(".menu_item.delete_polygon");
     var exportItem = $(".menu_item.export");
 
-    // remove old bindings for the menu items
+    // remove old bindings for the menu items (they refer to old polygons)
     deleteVertexItem.unbind("click");
+    deleteVertexItem.unbind("hover");
     deletePolygonItem.unbind("click");
     exportItem.unbind("click");
+
+    // the marker for the vertex we'll delete if the menu item is clicked
+    var deleteMarker = null;
+
+    // remove the vertex delete marker if it exists
+    var deleteVertexMarker = function () {
+        if (deleteMarker !== null) {
+            deleteMarker.setMap(null);
+            deleteMarker = null;
+        }
+    };
+
+    // make hovering over the 'delete vertex' show the vertex to be deleted
+    deleteVertexItem.hover(function () {
+        // only show the marker if there are enough vertices
+        if (selectedPolygon.getPath().getLength() > 2) {
+            var nearestIndex = getNearestVertex(selectedPolygon, clickLatLng);
+            var nearestVertex = selectedPolygon.getPath().getAt(nearestIndex);
+
+            // create set the delete marker
+            deleteVertexMarker(); // prevent duplicates
+            deleteMarker = new google.maps.Marker({
+                map: selectedPolygon.getMap(),
+                position: nearestVertex,
+            });
+        }
+    }, deleteVertexMarker);
 
     // make clicking 'delete vertex' remove the nearest vertex
     deleteVertexItem.click(function () {
@@ -233,6 +261,9 @@ var showMenu = function (selectedPolygon, clickLatLng, mouseTracker) {
             var vertexIndex = getNearestVertex(selectedPolygon, clickLatLng);
             selectedPolygon.getPath().removeAt(vertexIndex);
         }
+
+        // remove the vertex delete marker if it exists
+        deleteVertexMarker();
     });
 
     // make clicking 'delete polygon' remove the given polygon
