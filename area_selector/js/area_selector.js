@@ -114,22 +114,75 @@ var setupPolygon = function (map, keypressTracker, mouseTracker) {
     // collect coordinates as a line that we can convert to a polygon later
     var polyline = null;
 
+    // specify the various colors we'll use for polygons
+    var normalFillColor = "black";
+    var normalFillOpacity = 0.4;
+    var normalStrokeColor = "black";
+    var normalStrokeOpacity = 0.6;
+
+    var highlightFillColor = "green";
+    var highlightFillOpacity = 0.4;
+    var highlightStrokeColor = "#0ac200";
+    var highlightStrokeOpacity = 0.6;
+
     $(window).keyup(function (e) {
         // create a polygon when done collecting points
         if (e.which === collectorKeyCode) {
 
             // turn the polyline into a polygon if it's long enough
             if (polyline.getPath().getLength() > 1) {
+                // track the polygon's z value so we can change it later
+                var polygonZ = 0;
+
                 // create a new polygon on the map from the temporary polyline
                 var polygon = new google.maps.Polygon({
                     map: map,
                     paths: polyline.getPath(),
                     editable: true,
+
+                    // give it some fancier colors
+                    fillColor: normalFillColor,
+                    fillOpacity: normalFillOpacity,
+                    strokeColor: normalStrokeColor,
+                    strokeOpacity: normalStrokeOpacity,
+
+                    zIndex: polygonZ,
                 });
 
                 // make right-clicking the polygon show the menu for it
                 google.maps.event.addListener(polygon, "rightclick", function (e) {
                     showMenu(polygon, mouseTracker);
+                });
+
+                // make clicking change the z-index, to cycle through
+                // overlapping polygons.
+                google.maps.event.addListener(polygon, "click", function (e) {
+                    var newZIndex = polygonZ - 1;
+                    polygon.setOptions({
+                        zIndex: newZIndex,
+                    });
+
+                    // continue tracking the polygon's zIndex
+                    polygonZ = newZIndex;
+                });
+
+                // make hovering over the polygon change its color
+                google.maps.event.addListener(polygon, "mouseover", function (e) {
+                    polygon.setOptions({
+                        fillColor: highlightFillColor,
+                        fillOpacity: highlightFillOpacity,
+                        strokeColor: highlightStrokeColor,
+                        strokeOpacity: highlightStrokeOpacity,
+                    });
+                });
+
+                google.maps.event.addListener(polygon, "mouseout", function (e) {
+                    polygon.setOptions({
+                        fillColor: normalFillColor,
+                        fillOpacity: normalFillOpacity,
+                        strokeColor: normalStrokeColor,
+                        strokeOpacity: normalStrokeOpacity,
+                    });
                 });
             }
 
@@ -147,6 +200,9 @@ var setupPolygon = function (map, keypressTracker, mouseTracker) {
                 polyline = new google.maps.Polyline({
                     map: map,
                     editable: true,
+
+                    strokeColor: normalStrokeColor,
+                    strokeOpacity: normalStrokeOpacity,
                 });
             }
 
