@@ -302,7 +302,6 @@ var getNearestVertex = function (polygon, coords) {
 
 // offer up the given polygon for download
 var exportPolygon = function (polygon) {
-    console.log("Exporting polygon...");
     var polyString = polygonToString(polygon);
 
     // create a data URI and put the encoded data in it. we use the MIME type of
