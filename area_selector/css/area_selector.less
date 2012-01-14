@@ -1,15 +1,59 @@
 .user-select (@value) {
+    user-select: @value;
     -webkit-user-select: @value;
-    -khtml-user-select: @value;
     -moz-user-select: @value;
     -ms-user-select: @value;
     -o-user-select: @value;
-    user-select: @value;
+    -khtml-user-select: @value;
+}
+
+.box-shadow(@hoffset: 0, @voffset: 0, @blur: 1px, @spread: 1px, @color: black) {
+    box-shadow: @arguments;
+    -webkit-box-shadow: @arguments;
+    -moz-box-shadow: @arguments;
+    -ms-box-shadow: @arguments;
+    -o-box-shadow: @arguments;
+    -khtml-box-shadow: @arguments;
 }
 
 * {
     margin: 0;
     padding: 0;
+}
+
+// position at bottom of screen
+#help-container {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 5px;
+
+    z-index: 5;
+}
+
+#help {
+    // center in the container
+    width: 723px;
+    margin-left: auto;
+    margin-right: auto;
+
+    background-color: white;
+
+    // match the other controls
+    font-family: "Arial", sans-serif;
+    color: rgb(60, 60, 60);
+    font-size: 13px;
+
+    border: 1px solid rgba(0, 0, 0, 0.5);
+
+    @padding: 2px;
+    padding-top: @padding - 1px;
+    padding-bottom: @padding + 1px;
+    padding-left: @padding * 3;
+    padding-right: @padding * 3;
+
+    .user-select(none);
+    .box-shadow(0, 3px, 7px, 0px, rgb(75, 75, 75));
 }
 
 #map {
