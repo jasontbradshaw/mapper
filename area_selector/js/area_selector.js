@@ -214,7 +214,7 @@ var setupPolygon = function (map, keypressTracker, mouseTracker) {
 
 // shows the menu at the mouse location, and makes the options reference the
 // given polygon.
-var showMenu = function (selectedPolygon, clickLatLng, mouseTracker) {
+var showMenu = function (polygon, clickLatLng, mouseTracker) {
     var menu = $("#menu");
     var deleteVertexItem = $(".menu_item.delete_vertex");
     var deletePolygonItem = $(".menu_item.delete_polygon");
@@ -240,14 +240,14 @@ var showMenu = function (selectedPolygon, clickLatLng, mouseTracker) {
     // make hovering over the 'delete vertex' show the vertex to be deleted
     deleteVertexItem.hover(function () {
         // only show the marker if there are enough vertices
-        if (selectedPolygon.getPath().getLength() > 2) {
-            var nearestIndex = getNearestVertex(selectedPolygon, clickLatLng);
-            var nearestVertex = selectedPolygon.getPath().getAt(nearestIndex);
+        if (polygon.getPath().getLength() > 2) {
+            var nearestIndex = getNearestVertex(polygon, clickLatLng);
+            var nearestVertex = polygon.getPath().getAt(nearestIndex);
 
             // create set the delete marker
             deleteVertexMarker(); // prevent duplicates
             deleteMarker = new google.maps.Marker({
-                map: selectedPolygon.getMap(),
+                map: polygon.getMap(),
                 position: nearestVertex,
             });
         }
@@ -256,10 +256,10 @@ var showMenu = function (selectedPolygon, clickLatLng, mouseTracker) {
     // make clicking 'delete vertex' remove the nearest vertex
     deleteVertexItem.click(function () {
         // only remove a vertex if there are more than two
-        if (selectedPolygon.getPath().getLength() > 2) {
+        if (polygon.getPath().getLength() > 2) {
             // remove the nearest vertex
-            var vertexIndex = getNearestVertex(selectedPolygon, clickLatLng);
-            selectedPolygon.getPath().removeAt(vertexIndex);
+            var vertexIndex = getNearestVertex(polygon, clickLatLng);
+            polygon.getPath().removeAt(vertexIndex);
         }
 
         // remove the vertex delete marker if it exists
@@ -268,12 +268,12 @@ var showMenu = function (selectedPolygon, clickLatLng, mouseTracker) {
 
     // make clicking 'delete polygon' remove the given polygon
     deletePolygonItem.click(function () {
-        selectedPolygon.setMap(null);
+        polygon.setMap(null);
     });
 
     // make clicking 'export' offer the current polygon for download
     exportItem.click(function () {
-        exportPolygon(selectedPolygon);
+        exportPolygon(polygon);
     });
 
     // move the menu to the current mouse location and show it
