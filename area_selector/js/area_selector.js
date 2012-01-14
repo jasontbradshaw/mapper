@@ -229,20 +229,9 @@ var showMenu = function (selectedPolygon, clickLatLng, mouseTracker) {
     deleteVertexItem.click(function () {
         // only remove a vertex if there are more than two
         if (selectedPolygon.getPath().getLength() > 2) {
-            var nearestIndex = null;
-            var nearestDistance = null;
-            selectedPolygon.getPath().forEach(function (coord, index) {
-                // compute the distance between the click and the coord
-                var dist = google.maps.geometry.spherical.computeDistanceBetween(
-                    clickLatLng, coord);
-                if (nearestIndex === null || dist < nearestDistance) {
-                    nearestIndex = index;
-                    nearestDistance = dist;
-                }
-            });
-
             // remove the nearest vertex
-            selectedPolygon.getPath().removeAt(nearestIndex);
+            var vertexIndex = getNearestVertex(selectedPolygon, clickLatLng);
+            selectedPolygon.getPath().removeAt(vertexIndex);
         }
     });
 
@@ -261,6 +250,23 @@ var showMenu = function (selectedPolygon, clickLatLng, mouseTracker) {
     menu.css("left", mousePos[0]);
     menu.css("top", mousePos[1]);
     menu.show();
+};
+
+// returns an the index in the polygon of the nearest vertex to the given coords
+var getNearestVertex = function (polygon, coords) {
+    var nearestIndex = -1;
+    var nearestDistance = null;
+    polygon.getPath().forEach(function (vertex, index) {
+        // compute the distance between the click and the coord
+        var dist = google.maps.geometry.spherical.computeDistanceBetween(
+            vertex, coords);
+        if (nearestIndex === -1 || dist < nearestDistance) {
+            nearestIndex = index;
+            nearestDistance = dist;
+        }
+    });
+
+    return nearestIndex;
 };
 
 // offer up the given polygon for download
