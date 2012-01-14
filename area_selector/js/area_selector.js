@@ -90,7 +90,7 @@ var setupMenu = function () {
 var setupMap = function () {
     var mapCanvas = $("#map");
 
-    var mapOptions = {
+    var map = new google.maps.Map(mapCanvas.get(0), {
         center: new google.maps.LatLng(0, 0),
         zoom: 2,
         mapTypeId: google.maps.MapTypeId.ROADMAP,
@@ -100,9 +100,33 @@ var setupMap = function () {
         panControl: true,
         zoomControl: true,
         mapTypeControl: true,
+    });
+
+    // go to the last coordinates of the map if there were any
+    if (localStorage.getItem("lastMapView") !== null) {
+        var lastView = JSON.parse(localStorage.getItem("lastMapView"));
+        map.panTo(new google.maps.LatLng(lastView.latitude, lastView.longitude));
+        map.setZoom(lastView.zoom);
+    }
+
+    // store the current view of the map so we can reload it next time
+    var storeLastView = function () {
+        localStorage.setItem("lastMapView", JSON.stringify({
+            zoom: map.getZoom(),
+            latitude: map.getCenter().lat(),
+            longitude: map.getCenter().lng(),
+        }));
     };
 
-    var map = new google.maps.Map(mapCanvas.get(0), mapOptions);
+    // make zoom and center change store the view information
+    google.maps.event.addListener(map, "center_changed", function () {
+        storeLastView();
+    });
+
+    google.maps.event.addListener(map, "zoom_changed", function () {
+        storeLastView();
+    });
+
     return map;
 };
 
