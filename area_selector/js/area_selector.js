@@ -216,15 +216,24 @@ var setupPolygon = function (map, keypressTracker, mouseTracker) {
 // given polygon.
 var showMenu = function (polygon, clickLatLng, mouseTracker) {
     var menu = $("#menu");
-    var deleteVertexItem = $(".menu_item.delete_vertex");
-    var deletePolygonItem = $(".menu_item.delete_polygon");
-    var exportItem = $(".menu_item.export");
+
+    // get all menu items, and make sure they're visible (we disable selectively)
+    var deleteVertexItem = $(".menu_item.delete_vertex").show();
+    var deleteVertexSeparator = deleteVertexItem.next().show();
+    var deletePolygonItem = $(".menu_item.delete_polygon").show();
+    var exportItem = $(".menu_item.export").show();
 
     // remove old bindings for the menu items (they refer to old polygons)
     deleteVertexItem.unbind("click");
     deleteVertexItem.unbind("hover");
     deletePolygonItem.unbind("click");
     exportItem.unbind("click");
+
+    // hide the 'delete vertex' item if there aren't enough vertices
+    if (polygon.getPath().getLength() <= 2) {
+        deleteVertexItem.hide();
+        deleteVertexSeparator.hide();
+    }
 
     // the marker for the vertex we'll delete if the menu item is clicked
     var deleteMarker = null;
