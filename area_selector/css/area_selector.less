@@ -1,3 +1,12 @@
+.user-select (@value) {
+    -webkit-user-select: @value;
+    -khtml-user-select: @value;
+    -moz-user-select: @value;
+    -ms-user-select: @value;
+    -o-user-select: @value;
+    user-select: @value;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -10,4 +19,40 @@
     right: 0;
     bottom: 0;
     left: 0;
+}
+
+// the right-click menu
+#menu {
+    background-color: white;
+    border: 1px solid rgba(0, 0, 0, 0.5);
+    font-family: "Arial", sans-serif;
+
+    // will be set to the mouse position when shown
+    position: fixed;
+    left: 0;
+    top: 0;
+
+    // disable text selection
+    .user-select(none);
+
+    // hide it initially: it will be shown when needed
+    display: none;
+}
+
+.menu_item {
+    font-size: 13px;
+    color: rgb(60, 60, 60);
+
+    cursor: pointer;
+
+    @hpadding: 15px;
+    @vpadding: 6px;
+    padding-top: @vpadding;
+    padding-bottom: @vpadding;
+    padding-left: @hpadding;
+    padding-right: @hpadding + 2px;
+
+    &:hover {
+        background: rgb(245, 245, 245);
+    }
 }
