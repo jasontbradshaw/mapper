@@ -754,7 +754,8 @@ if __name__ == "__main__":
         Tile.from_google(60, 108, 8), # water
         Tile.from_google(1605, 2885, 13), # land
         Tile.from_google(1605, 2887, 13), # park
-        Tile.from_google(1677, 3306, 13) # feature (military, airports, others?)
+        Tile.from_google(1677, 3306, 13) # military, airports, others?
+        Tile.from_google(119822, 215827, 19) # cemetary, university, others?
     ]
 
     #download(Tile.TYPE_MAP, ut_tiles, MongoTileStore())
