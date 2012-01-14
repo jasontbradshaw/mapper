@@ -8,10 +8,8 @@ $(function () {
 
     setupMenu();
 
-    // build the main map
+    // build the main map and allow polygon creation
     var map = setupMap();
-
-    // allow creation of polygons
     setupPolygon(map, keypressTracker, mouseTracker);
 });
 
