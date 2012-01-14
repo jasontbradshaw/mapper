@@ -242,9 +242,7 @@ var showMenu = function (selectedPolygon, clickLatLng, mouseTracker) {
             });
 
             // remove the nearest vertex
-            if (nearestIndex !== null) {
-                selectedPolygon.getPath().removeAt(nearestIndex);
-            }
+            selectedPolygon.getPath().removeAt(nearestIndex);
         }
     });
 
