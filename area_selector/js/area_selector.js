@@ -130,7 +130,7 @@ var setupPolygon = function (map, keypressTracker, mouseTracker) {
         if (e.which === collectorKeyCode) {
 
             // turn the polyline into a polygon if it's long enough
-            if (polyline.getPath().getLength() > 1) {
+            if (polyline != null && polyline.getPath().getLength() > 1) {
                 // track the polygon's z value so we can change it later
                 var polygonZ = 0;
 
