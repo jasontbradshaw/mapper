@@ -151,7 +151,7 @@ var setupPolygon = function (map, keypressTracker, mouseTracker) {
 
                 // make right-clicking the polygon show the menu for it
                 google.maps.event.addListener(polygon, "rightclick", function (e) {
-                    showMenu(polygon, mouseTracker);
+                    showMenu(polygon, e.latLng, mouseTracker);
                 });
 
                 // make clicking change the z-index, to cycle through
@@ -214,17 +214,42 @@ var setupPolygon = function (map, keypressTracker, mouseTracker) {
 
 // shows the menu at the mouse location, and makes the options reference the
 // given polygon.
-var showMenu = function (selectedPolygon, mouseTracker) {
+var showMenu = function (selectedPolygon, clickLatLng, mouseTracker) {
     var menu = $("#menu");
-    var deleteItem = $(".menu_item.delete");
+    var deleteVertexItem = $(".menu_item.delete_vertex");
+    var deletePolygonItem = $(".menu_item.delete_polygon");
     var exportItem = $(".menu_item.export");
 
     // remove old bindings for the menu items
-    deleteItem.unbind("click");
+    deleteVertexItem.unbind("click");
+    deletePolygonItem.unbind("click");
     exportItem.unbind("click");
 
-    // make clicking 'delete' remove the given polygon
-    deleteItem.click(function () {
+    // make clicking 'delete vertex' remove the nearest vertex
+    deleteVertexItem.click(function () {
+        // only remove a vertex if there are more than two
+        if (selectedPolygon.getPath().getLength() > 2) {
+            var nearestIndex = null;
+            var nearestDistance = null;
+            selectedPolygon.getPath().forEach(function (coord, index) {
+                // compute the distance between the click and the coord
+                var dist = google.maps.geometry.spherical.computeDistanceBetween(
+                    clickLatLng, coord);
+                if (nearestIndex === null || dist < nearestDistance) {
+                    nearestIndex = index;
+                    nearestDistance = dist;
+                }
+            });
+
+            // remove the nearest vertex
+            if (nearestIndex !== null) {
+                selectedPolygon.getPath().removeAt(nearestIndex);
+            }
+        }
+    });
+
+    // make clicking 'delete polygon' remove the given polygon
+    deletePolygonItem.click(function () {
         selectedPolygon.setMap(null);
     });
 

@@ -85,6 +85,17 @@ body {
 
     // hide it initially: it will be shown when needed
     display: none;
+
+    hr {
+        @vmargin: 5px;
+        margin-top: @vmargin;
+        margin-bottom: @vmargin;
+
+        @hr_color: rgb(230, 230, 230);
+        border: none;
+        border-top: 1px solid @hr_color;
+        color: @hr_color;
+    }
 }
 
 .menu_item {
