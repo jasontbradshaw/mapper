@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import collections
-import copy
 from math import pi, atan, exp, sin, log
 import os
 import itertools
