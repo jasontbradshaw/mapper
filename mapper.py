@@ -13,7 +13,7 @@ import urllib2
 import pymongo
 import bson
 
-def download(tile_type, tiles, tile_store, num_threads=10):
+def download(tile_type, tiles, tile_store, num_threads=10, verbose=True):
     """
     Downloads some tiles in parallel from an iterable using the given type.
     num_threads is the number of simultaneous threads that will be used to
@@ -31,7 +31,7 @@ def download(tile_type, tiles, tile_store, num_threads=10):
     threads = []
     for i in xrange(num_threads):
         thread = threading.Thread(target=__download_tiles_from_queue,
-                args=(tile_type, tile_queue, tile_store, 0.1, 3))
+                args=(tile_type, tile_queue, tile_store, 0.1, 3, verbose))
         thread.daemon = True
         threads.append(thread)
         thread.start()
@@ -54,7 +54,8 @@ def download(tile_type, tiles, tile_store, num_threads=10):
     # wait for all the threads to finish
     [thread.join() for thread in threads]
 
-def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10):
+def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
+        verbose=True):
     """
     Download tiles formed from the area described by the given tile vertices.
     vertices should be an in-order list of tiles describing the sequential
@@ -64,12 +65,19 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10):
     other parameters.
     """
 
+    def log(msg):
+        """Log a message to the screen if verbose is True."""
+        if verbose:
+            print msg
+
     for z in zoom_levels:
         # translate vertices to the given zoom level, then to coordinate pairs
         points = []
         for v in vertices:
             zoomed_v = Tile.from_mercator(v.latitude, v.longitude, z)
             points.append((zoomed_v.x, zoomed_v.y))
+
+        log("Downloading area at zoom " + str(z))
 
         # get the area for the points
         area = Polygon.generate_area(points)
@@ -78,10 +86,10 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10):
         area_tiles = (Tile.from_google(p[0], p[1], z) for p in area)
 
         # download all the tiles in the area for this zoom level
-        download(tile_type, area_tiles, tile_store)
+        download(tile_type, area_tiles, tile_store, num_threads, verbose)
 
 def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
-        timeout=0.1, max_failures=3):
+        timeout=0.1, max_failures=3, verbose=True):
     """
     Downloads all the tiles in a queue for some type and stores them in the tile
     store. Will re-insert failed downloads into the queue for later processing,
@@ -89,6 +97,11 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
     seconds downloading threads will wait for new tiles to enter the queue
     before giving up and ending their download loops.
     """
+
+    def log(msg):
+        """Log a message to the screen if verbose is True."""
+        if verbose:
+            print msg
 
     while 1:
         try:
@@ -105,12 +118,18 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
                     # then the queue fills up, there will be nobody to make more
                     # room in the queue.
                     tile_queue.put((fail_count + 1, tile))
+                    log("Download of tile " + str(tile) + " as type " +
+                            str(tile_type) + " failed, " +
+                            str(fail_count + 1 - max_failures) +
+                            " retry attempts remaining")
                 else:
                     # give up otherwise
-                    print ("Could not download tile " + str(tile) +
-                            " as type " + tile_type)
+                    log("Could not download tile " + str(tile) + " as type " +
+                            str(tile_type) + " (out of retries)")
             else:
                 # store the downloaded tile
+                log("Downloaded tile " + str(tile) + " as type " +
+                        str(tile_type))
                 tile_store.store(tile_type, tile, tile_data)
 
             # signal that we finished processing this tile
