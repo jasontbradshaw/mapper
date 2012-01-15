@@ -740,6 +740,8 @@ class Polygon:
             # sort active edges by x coordinates
             active_edges.sort(key=lambda e: e[1])
 
+            # TODO: figure out why we're never downloading the largest y coord
+
             # fill between pairs of intersections
             assert len(active_edges) % 2 == 0
             for a, b in itertools.izip(*[iter(active_edges)] * 2):
@@ -830,9 +832,8 @@ if __name__ == "__main__":
         Tile.from_google(59906, 107919, 18)
     ]
 
-    #ut_area = Polygon.get_area(map(lambda t: (t.x, t.y), ut_corners))
-    #pprint(ut_area)
-    #assert set(ut_area) ^ set(map(lambda t: (t.x, t.y), ut_tiles)) == set()
+    ut_area = Polygon.get_area(map(lambda t: (t.x, t.y), ut_corners))
+    pprint(ut_area)
 
     # tiles that are of a single solid color (we can save space!)
     uniform_tiles = [
@@ -845,4 +846,4 @@ if __name__ == "__main__":
 
     #download(Tile.TYPE_MAP, ut_tiles, MongoTileStore())
     #download(Tile.TYPE_MAP, uniform_tiles, FileTileStore())
-    download_area(Tile.TYPE_MAP, ut_corners, NullTileStore(), range(20))
+    #download_area(Tile.TYPE_MAP, ut_corners, NullTileStore(), range(20))
