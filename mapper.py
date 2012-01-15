@@ -2,9 +2,9 @@
 
 import collections
 import copy
-import itertools
 from math import pi, atan, exp, sin, log
 import os
+import itertools
 import Queue as queue
 import random
 import threading
@@ -530,23 +530,6 @@ class Polygon:
         raise NotImplemented(self.__class__.__name__ + " can't be instantiated")
 
     @staticmethod
-    def __cycle(iterable, skip=1):
-        """
-        cycle([1, 2, 3], 1) -> 2, 3, 1, 2, 3, ...
-        Returns a generator that yields the elements of an iterable in a cycle,
-        starting by skipping the first 'skip' items.
-        """
-
-        # don't cycle for empty iterables
-        if len(iterable) == 0:
-            return
-
-        i = skip
-        while 1:
-            yield iterable[i]
-            i = (i + 1) % len(iterable)
-
-    @staticmethod
     def generate_line(a, b):
         """
         Rasterizes the line between the given points, and yields them all
@@ -586,6 +569,36 @@ class Polygon:
                 y0 += sy
 
     @staticmethod
+    def generate_vertex_pairs(vertices):
+        """
+        Generates paired vertices from a list of vertices, including from last
+        vertex to first vertex.
+
+        Examples:
+            [] -> []
+            [A] -> [(A, A)]
+            [A, B] -> [(A, B), (B, A)]
+            [A, B, C] -> [(A, B), (B, C), (C, A)]
+        """
+
+        # don't do any work if we're too short
+        if len(vertices) == 0:
+            return
+
+        # turn our vertices into a sequence of adjacent vertex pairs
+        last_point = None
+        for point in vertices:
+            if last_point is None:
+                last_point = point
+                continue
+
+            yield (last_point, point)
+            last_point = point
+
+        # add the pair from last to first
+        yield (last_point, vertices[0])
+
+    @staticmethod
     def get_line(a, b):
         """
         Same as generate_line(), but returns a list instead of a generator.
@@ -603,11 +616,8 @@ class Polygon:
         """
 
         # collapse adjacent duplicate vertices
-        collapsed_vertices = []
-        for v in vertices:
-            if len(collapsed_vertices) == 0 or collapsed_vertices[-1] != v:
-                collapsed_vertices.append(v)
-        vertices = collapsed_vertices
+        collapse = lambda a, p: a + [p] if (len(a) == 0 or p != a[-1]) else a
+        vertices = reduce(collapse, vertices, [])
 
         # don't bother with calculations for corner cases
         if len(vertices) <= 1:
@@ -619,64 +629,87 @@ class Polygon:
                 yield point
             return
 
-        # map points on edges to collections of their line boundaries
-        edge_points = collections.defaultdict(list)
+        # get all lines, keeping only non-horizontal lines
+        lines = [pair for pair in Polygon.generate_vertex_pairs(vertices)]
+        lines = filter(lambda p: p[0][1] != p[1][1], lines)
 
-        # iterate over the sequentially paired vertices, indcluding (last, first)
-        for a, b in itertools.izip(vertices, Polygon.__cycle(vertices, 1)):
-            # find the boundaries of this line
-            bounds = Bounds.get_bounds(a, b)
+        # find the bounds for the whole polygon
+        polygon_bounds = Bounds.get_bounds(*vertices)
 
-            # add only non-horizontal edges
-            if bounds.top[1] != bounds.bottom[1]:
-                # map each point on the line to a list of line bounds
-                for point in Polygon.generate_line(a, b):
-                    edge_points[point].append(bounds)
+        # iterate top to bottom along the y axis, building the SET
+        sorted_edges = collections.defaultdict(list)
+        for y in xrange(polygon_bounds.top[1], polygon_bounds.bottom[1] + 1):
+            for a, b in lines:
+                # get bounding box for this line
+                bounds = Bounds.get_bounds(a, b)
 
-        # make the dict behave as a normal dictionary
-        edge_points.default_factory = None
+                # the largest y, so we know when to stop checking the edge
+                y_max = bounds.bottom[1]
 
-        # scan from top to bottom, generating scanlines
-        bounds = Bounds.get_bounds(*vertices)
+                # the slope parts of the edge, to use edge coherence
+                rise = b[1] - a[1]
+                run = b[0] - a[0]
 
-        # scan left-right (starting from known empty points), intersecting
-        for y in xrange(bounds.top[1], bounds.bottom[1] + 1):
+                # TODO: handle special vertex cases
 
-            # keep track of whether we're inside the polygon as we scan
-            inside = False
-            for x in xrange(bounds.left[0], bounds.right[0] + 1):
-                # get the current coordinates
-                p = (x, y)
+                # add to SET if line has its minimum y coord in this scanline.
+                x_min = None
+                if a[1] == y and a[1] == bounds.top[1]:
+                    x_min = a[0]
+                elif b[1] == y and b[1] == bounds.top[1]:
+                    x_min = b[0]
 
-                # yield points between intersecting edges
-                if inside:
-                    yield p
+                # only add if we had a minimum vertex at this scanline
+                if x_min is not None:
+                    sorted_edges[y].append([y_max, x_min, rise, run])
 
-                # if we're on a line, store the point as an intersection
-                if p in edge_points:
-                    edge_bounds = edge_points[p]
+                    # keep the entries sorted by y_max then x_min (list's
+                    # natural sorting order, luckily for us).
+                    sorted_edges[y].sort()
 
-                    # de-dupe certain intersections
-                    if len(edge_bounds) > 1:
-                        # we only de-dupe two points (no complex polygons)
-                        i1_bounds = edge_bounds[0]
-                        i2_bounds = edge_bounds[1]
+        pprint(dict(sorted_edges))
 
-                        # condense down to a single intersection if we didn't
-                        # meet in a 'v' or '^' shape and we were on a vertex.
-                        if not (i1_bounds.bottom[1] == i2_bounds.bottom[1] or
-                                i1_bounds.top[1] == i2_bounds.top[1]):
-                            edge_bounds = [i1_bounds]
-                        else:
-                            # constrain to two intersections otherwise
-                            edge_bounds = [i1_bounds, i2_bounds]
+        # list of active edges, those intersecting with the current scanline
+        active_edges = []
 
-                    # yield first inside point if crossing in from outside
-                    if not inside:
-                        yield p
+        # starting y value as smallest value in SET with a non-empty bucket
+        y = min(*sorted_edges.keys())
 
-                    # move from inside to outside every time we cross an edge
-                    inside = not inside and len(edge_bounds) % 2 != 0
+        # continue while sorted edges or active edges have entries
+        while len(sorted_edges.values()) > 0 or len(active_edges) > 0:
+            # move y bucket into active edge list if the edges' y-min (the key
+            # into sorted edges) is the current y.
+            if y in sorted_edges:
+                active_edges.extend(sorted_edges[y])
+                del sorted_edges[y]
+
+            # deactivate edges who's y-max is the current y if it's not the
+            # final iteration.
+            active_edges = filter(lambda e: e[0] != y, active_edges)
+
+            # sort active edges by x coordinates
+            active_edges.sort(key=lambda e: e[1])
+
+            # fill between pairs of intersections
+            assert len(active_edges) % 2 == 0
+            for a, b in itertools.izip(*[iter(active_edges)] * 2):
+                # round values to nearest whole number
+                for x in xrange(int(round(a[1])), int(round(b[1]))):
+                    # yield points from [a.x, b.x]
+                    yield (x, y)
+
+            # move to the next scanline
+            y += 1
+
+            # update x for non-vertical edges left in active edges
+            for edge in active_edges:
+                _, x_min, rise, run = edge
+
+                # update the edge's x_min for the next round if the edge is not
+                # vertical. this has the same effect of incrementing x for every
+                # scanline, and moving it over.
+                if run != 0:
+                    edge[1] = x_min + (1.0 * run / rise)
 
     @staticmethod
     def get_area(vertices):
@@ -689,20 +722,22 @@ class Polygon:
 if __name__ == "__main__":
     from pprint import pprint
 
-    tile_m = Tile.from_mercator(30.2832, -97.7362, 18)
-    tile_g = Tile.from_google(59902, 107915, 18)
-    print "Mercator:", tile_m.latitude, tile_m.longitude, tile_m.zoom
-    print "Google:", tile_g.x, tile_g.y, tile_g.zoom
-    assert tile_m == tile_g
+    #tile_m = Tile.from_mercator(30.2832, -97.7362, 18)
+    #tile_g = Tile.from_google(59902, 107915, 18)
+    #print "Mercator:", tile_m.latitude, tile_m.longitude, tile_m.zoom
+    #print "Google:", tile_g.x, tile_g.y, tile_g.zoom
+    #assert tile_m == tile_g
 
-    # get us an area and make sure it contains no duplicate tiles
+    # get us an area
     points = [
-        (0, 0),
-        (5, 0),
-        (5, 5),
-        (0, 5)
+        (2, 3),
+        (7, 1),
+        (13, 5),
+        (13, 11),
+        (7, 7),
+        (2, 9),
     ]
-    pprint(Polygon.get_area(points))
+    pprint([x for x in Polygon.get_area(points)])
 
     # these tiles represent roughly the UT Austin campus
     ut_corners = [
@@ -745,9 +780,9 @@ if __name__ == "__main__":
         Tile.from_google(59906, 107919, 18)
     ]
 
-    ut_area = Polygon.get_area(map(lambda t: (t.x, t.y), ut_corners))
-    pprint(ut_area)
-    assert set(ut_area) ^ set(map(lambda t: (t.x, t.y), ut_tiles)) == set()
+    #ut_area = Polygon.get_area(map(lambda t: (t.x, t.y), ut_corners))
+    #pprint(ut_area)
+    #assert set(ut_area) ^ set(map(lambda t: (t.x, t.y), ut_tiles)) == set()
 
     # tiles that are of a single solid color (we can save space!)
     uniform_tiles = [
