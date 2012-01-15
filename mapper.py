@@ -733,22 +733,29 @@ class Polygon:
                 active_edges.extend(sorted_edges[y])
                 del sorted_edges[y]
 
-            # deactivate edges who's y-max is the current y if it's not the
-            # final iteration.
-            active_edges = filter(lambda e: e[0] != y, active_edges)
-
             # sort active edges by x coordinates
             active_edges.sort(key=lambda e: e[1])
 
-            # TODO: figure out why we're never downloading the largest y coord
-
-            # fill between pairs of intersections
-            assert len(active_edges) % 2 == 0
+            # fill between pairs of intersections (excluding the final new edge
+            # if we added an odd number). keep track of the last yielded point
+            # so we don't duplicate points at 'v'-shaped intersections.
+            last_point = None
             for a, b in itertools.izip(*[iter(active_edges)] * 2):
+                x_from = int(round(a[1]))
+                x_to = int(round(b[1])) + 1
+
                 # round values to nearest whole number
-                for x in xrange(int(round(a[1])), int(round(b[1]))):
-                    # yield points from [a.x, b.x]
-                    yield (x, y)
+                for x in xrange(x_from, x_to):
+                    point = (x, y)
+
+                    # don't yield duplicate points (happens at some vertices)
+                    if point != last_point:
+                        yield point
+
+                    last_point = point
+
+            # deactivate edges who's y-max is the current y
+            active_edges = filter(lambda e: e[0] != y, active_edges)
 
             # move to the next scanline
             y += 1
@@ -757,10 +764,9 @@ class Polygon:
             for edge in active_edges:
                 _, x_min, rise, run = edge
 
-                # update the edge's x_min for the next round if the edge is not
-                # vertical. this has the same effect of incrementing x for every
-                # scanline, and moving it over.
+                # update edge's x_min for next round if the edge isn't vertical
                 if run != 0:
+                    # TODO: do incremental calculation
                     edge[1] = x_min + (1.0 * run / rise)
 
     @staticmethod
@@ -781,6 +787,7 @@ if __name__ == "__main__":
     #assert tile_m == tile_g
 
     # get us an area
+    print "indian:"
     points = [
         (2, 3),
         (7, 1),
@@ -790,6 +797,18 @@ if __name__ == "__main__":
         (2, 9),
     ]
     pprint(Polygon.get_area(points))
+    print
+
+    print "turquoise:"
+    points = [
+        (4, 1),
+        (1, 11),
+        (9, 5),
+        (12, 8),
+        (12, 1)
+    ]
+    pprint(Polygon.get_area(points))
+    print
 
     # these tiles represent roughly the UT Austin campus
     ut_corners = [
@@ -832,8 +851,10 @@ if __name__ == "__main__":
         Tile.from_google(59906, 107919, 18)
     ]
 
+    print "ut:"
     ut_area = Polygon.get_area(map(lambda t: (t.x, t.y), ut_corners))
     pprint(ut_area)
+    print
 
     # tiles that are of a single solid color (we can save space!)
     uniform_tiles = [
