@@ -688,7 +688,11 @@ class Polygon:
         active_edges = []
 
         # starting y value as smallest value in SET with a non-empty bucket
-        y = min(*sorted_edges.keys())
+        assert len(sorted_edges.keys()) >= 1
+        if len(sorted_edges.keys()) > 1:
+            y = min(*sorted_edges.keys())
+        else:
+            y = sorted_edges.keys()[0]
 
         # continue while sorted edges or active edges have entries
         while len(sorted_edges.values()) > 0 or len(active_edges) > 0:
