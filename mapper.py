@@ -507,6 +507,28 @@ class Polygon:
     # represents the bounding box of some points
     Bounds = collections.namedtuple("Bounds", ["top", "right", "bottom", "left"])
 
+    class Edge:
+        """
+        Represents an edge used in the sorted edge table and active edge table.
+        """
+
+        def __init__(self, y_max, x_min, rise, run):
+            self.y_max = y_max
+            self.x_min = x_min
+            self.rise = rise
+            self.run = run
+
+        def __str__(self):
+            return repr(self)
+
+        def __repr__(self):
+            s = self.__class__.__name__ + "("
+            s += ", ".join(map(repr, (self.y_max, self.x_min, self.rise,
+                self.run)))
+            s += ")"
+
+            return s
+
     def __init__(self):
         raise NotImplemented(self.__class__.__name__ + " can't be instantiated")
 
@@ -685,21 +707,17 @@ class Polygon:
 
                 # only add if we had a minimum vertex at this scanline
                 if x_min is not None:
-                    sorted_edges[y].append([y_max, x_min, rise, run])
+                    sorted_edges[y].append(Polygon.Edge(y_max, x_min, rise, run))
 
-                    # keep the entries sorted by y_max then x_min (list's
-                    # natural sorting order, luckily for us).
-                    sorted_edges[y].sort()
+                    # keep the entries sorted by y_max then x_min
+                    sorted_edges[y].sort(key=lambda e: (e.y_max, e.x_min))
 
         # list of active edges, those intersecting with the current scanline
         active_edges = []
 
-        # starting y value as smallest value in SET with a non-empty bucket
-        assert len(sorted_edges.keys()) >= 1
-        if len(sorted_edges.keys()) > 1:
-            y = min(*sorted_edges.keys())
-        else:
-            y = sorted_edges.keys()[0]
+        # starting y value is smallest value in SET with a non-empty bucket,
+        # i.e. the top of our polygon's bounds.
+        y = polygon_bounds.top[1]
 
         # continue while sorted edges or active edges have entries
         while len(sorted_edges.values()) > 0 or len(active_edges) > 0:
@@ -710,15 +728,15 @@ class Polygon:
                 del sorted_edges[y]
 
             # sort active edges by x coordinates
-            active_edges.sort(key=lambda e: e[1])
+            active_edges.sort(key=lambda e: e.x_min)
 
             # fill between pairs of intersections (excluding the final new edge
             # if we added an odd number). keep track of the last yielded point
             # so we don't duplicate points at 'v'-shaped intersections.
             last_point = None
             for a, b in itertools.izip(*[iter(active_edges)] * 2):
-                x_from = int(round(a[1]))
-                x_to = int(round(b[1])) + 1
+                x_from = int(round(a.x_min))
+                x_to = int(round(b.x_min)) + 1
 
                 # round values to nearest whole number
                 for x in xrange(x_from, x_to):
@@ -731,19 +749,17 @@ class Polygon:
                     last_point = point
 
             # deactivate edges who's y-max is the current y
-            active_edges = filter(lambda e: e[0] != y, active_edges)
+            active_edges = filter(lambda e: e.y_max != y, active_edges)
 
             # move to the next scanline
             y += 1
 
             # update x for non-vertical edges left in active edges
             for edge in active_edges:
-                _, x_min, rise, run = edge
-
                 # update edge's x_min for next round if the edge isn't vertical
-                if run != 0:
-                    # TODO: do incremental calculation
-                    edge[1] = x_min + (1.0 * run / rise)
+                if edge.run != 0:
+                    # TODO: use incremental calculation
+                    edge.x_min = edge.x_min + (1.0 * edge.run / edge.rise)
 
     @staticmethod
     def get_area(vertices):
