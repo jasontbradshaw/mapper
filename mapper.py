@@ -579,6 +579,37 @@ class Polygon:
         raise NotImplemented(self.__class__.__name__ + " can't be instantiated")
 
     @staticmethod
+    def generate_vertex_pairs(vertices):
+        """
+        Generates paired vertices from a list of vertices, including from last
+        vertex to first vertex.
+
+        Examples:
+            [] -> []
+            [A] -> [(A, A)]
+            [A, B] -> [(A, B), (B, A)]
+            [A, B, C] -> [(A, B), (B, C), (C, A)]
+        """
+
+        # don't do any work if we're too short
+        if len(vertices) == 0:
+            return
+
+        # turn our vertices into a sequence of adjacent vertex pairs
+        last_point = None
+        for point in vertices:
+            if last_point is None:
+                last_point = point
+                continue
+
+            yield (last_point, point)
+            last_point = point
+
+        # add the pair from last to first
+        yield (last_point, vertices[0])
+
+
+    @staticmethod
     def generate_line(a, b):
         """
         Rasterizes the line between the given points, and yields them all
@@ -616,36 +647,6 @@ class Polygon:
             if e2 < dx:
                 err += dx
                 y0 += sy
-
-    @staticmethod
-    def generate_vertex_pairs(vertices):
-        """
-        Generates paired vertices from a list of vertices, including from last
-        vertex to first vertex.
-
-        Examples:
-            [] -> []
-            [A] -> [(A, A)]
-            [A, B] -> [(A, B), (B, A)]
-            [A, B, C] -> [(A, B), (B, C), (C, A)]
-        """
-
-        # don't do any work if we're too short
-        if len(vertices) == 0:
-            return
-
-        # turn our vertices into a sequence of adjacent vertex pairs
-        last_point = None
-        for point in vertices:
-            if last_point is None:
-                last_point = point
-                continue
-
-            yield (last_point, point)
-            last_point = point
-
-        # add the pair from last to first
-        yield (last_point, vertices[0])
 
     @staticmethod
     def get_line(a, b):
