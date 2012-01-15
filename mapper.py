@@ -378,6 +378,17 @@ class TileStore:
 
         raise NotImplemented("Implement this in your own subclass!")
 
+class NullTileStore(TileStore):
+    """
+    Throws away all tiles given to it. Useful for performance testing.
+    """
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def store(*args, **kwargs):
+        pass
+
 class FileTileStore(TileStore):
     """
     Stores tiles in a directory on the local file system.
@@ -814,4 +825,4 @@ if __name__ == "__main__":
 
     #download(Tile.TYPE_MAP, ut_tiles, MongoTileStore())
     #download(Tile.TYPE_MAP, uniform_tiles, FileTileStore())
-    #download_area(Tile.TYPE_MAP, ut_corners, FileTileStore(), range(20))
+    #download_area(Tile.TYPE_MAP, ut_corners, NullTileStore(), range(20))
