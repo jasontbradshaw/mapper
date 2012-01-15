@@ -499,26 +499,19 @@ class MongoTileStore(TileStore):
         # add our tile to the collection, updating if the '_id' is set
         self.collection.save(tile)
 
-class Bounds:
+class Polygon:
     """
-    A class representing the bounding box of some points. It holds the top-most,
-    right-most, bottom-most, and left-most vertices.
+    A utility class for operations on lists of vertices.
     """
 
-    def __init__(self, top=None, right=None, bottom=None, left=None):
-        """
-        Create a bounds object from top, right, bottom, and left points. Should
-        only be used internally: use get_bounds() instead.
-        """
+    # represents the bounding box of some points
+    Bounds = collections.namedtuple("Bounds", ["top", "right", "bottom", "left"])
 
-        # save our extremities as copies
-        self.top = top
-        self.right = right
-        self.bottom = bottom
-        self.left = left
+    def __init__(self):
+        raise NotImplemented(self.__class__.__name__ + " can't be instantiated")
 
     @staticmethod
-    def get_bounds(*points):
+    def get_bounds(*vertices):
         """
         Returns a Bounds object containing data about the bounding box that
         contains the given points. If multiple points are at the bounds, the
@@ -531,52 +524,24 @@ class Bounds:
         right = None
         bottom = None
         left = None
-        for point in points:
+        for vertex in vertices:
             # top
-            if top is None or point[1] < top[1]:
-                top = point
+            if top is None or vertex[1] < top[1]:
+                top = vertex
 
             # right
-            if right is None or point[0] > right[0]:
-                right = point
+            if right is None or vertex[0] > right[0]:
+                right = vertex
 
             # bottom
-            if bottom is None or point[1] > bottom[1]:
-                bottom = point
+            if bottom is None or vertex[1] > bottom[1]:
+                bottom = vertex
 
             # left
-            if left is None or point[0] < left[0]:
-                left = point
+            if left is None or vertex[0] < left[0]:
+                left = vertex
 
-        return Bounds(top=top, right=right, bottom=bottom, left=left)
-
-    def __str__(self):
-        s = "("
-        s += ",".join(map(str, (self.top, self.right, self.bottom, self.left)))
-        s += ")"
-
-        return s
-
-    def __repr__(self):
-        s = self.__class__.__name__ + "("
-        s += "top=" + str(self.top)
-        s += ", "
-        s += "right=" + str(self.right)
-        s += ", "
-        s += "bottom=" + str(self.bottom)
-        s += ", "
-        s += "left=" + str(self.left)
-        s += ")"
-
-        return s
-
-class Polygon:
-    """
-    A utility class for operations on lists of vertices.
-    """
-
-    def __init__(self):
-        raise NotImplemented(self.__class__.__name__ + " can't be instantiated")
+        return Polygon.Bounds(top=top, right=right, bottom=bottom, left=left)
 
     @staticmethod
     def generate_vertex_pairs(vertices):
@@ -684,14 +649,14 @@ class Polygon:
         lines = filter(lambda p: p[0][1] != p[1][1], lines)
 
         # find the bounds for the whole polygon
-        polygon_bounds = Bounds.get_bounds(*vertices)
+        polygon_bounds = Polygon.get_bounds(*vertices)
 
         # iterate top to bottom along the y axis, building the SET
         sorted_edges = collections.defaultdict(list)
         for y in xrange(polygon_bounds.top[1], polygon_bounds.bottom[1] + 1):
             for a, b in lines:
                 # get bounding box for this line
-                bounds = Bounds.get_bounds(a, b)
+                bounds = Polygon.get_bounds(a, b)
 
                 # the largest y, so we know when to stop checking the edge
                 y_max = bounds.bottom[1]
