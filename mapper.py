@@ -650,9 +650,8 @@ class Polygon:
                 rise = b[1] - a[1]
                 run = b[0] - a[0]
 
-                # TODO: handle special vertex cases
-
                 # add to SET if line has its minimum y coord in this scanline.
+                # this handles vertex edge cases as well.
                 x_min = None
                 if a[1] == y and a[1] == bounds.top[1]:
                     x_min = a[0]
@@ -666,8 +665,6 @@ class Polygon:
                     # keep the entries sorted by y_max then x_min (list's
                     # natural sorting order, luckily for us).
                     sorted_edges[y].sort()
-
-        pprint(dict(sorted_edges))
 
         # list of active edges, those intersecting with the current scanline
         active_edges = []
@@ -737,7 +734,7 @@ if __name__ == "__main__":
         (7, 7),
         (2, 9),
     ]
-    pprint([x for x in Polygon.get_area(points)])
+    pprint(Polygon.get_area(points))
 
     # these tiles represent roughly the UT Austin campus
     ut_corners = [
