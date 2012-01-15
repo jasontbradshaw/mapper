@@ -503,7 +503,7 @@ class Bounds:
 
     def __str__(self):
         s = "("
-        s += ",".join(map(str((self.top, self.right, self.bottom, self.left))))
+        s += ",".join(map(str, (self.top, self.right, self.bottom, self.left)))
         s += ")"
 
         return s
