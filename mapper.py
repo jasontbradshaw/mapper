@@ -48,9 +48,6 @@ def download(tile_type, tiles, tile_store, num_threads=10, verbose=True):
             except queue.Full:
                 continue
 
-    # wait for all the queue's tiles to be processed
-    tile_queue.join()
-
     # wait for all the threads to finish
     [thread.join() for thread in threads]
 
@@ -65,10 +62,26 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
     other parameters.
     """
 
+    # check our thread count to make sure we'll get workers
+    if num_threads <= 0:
+        raise ValueError("num_threads must be greater than 0")
+
     def log(msg):
         """Log a message to the screen if verbose is True."""
         if verbose:
             print msg
+
+    # the queue our threads will pull tiles from (least-failed tiles first)
+    tile_queue = queue.PriorityQueue(num_threads * 10)
+
+    # start our threads; they will wait a bit for tiles to download
+    threads = []
+    for i in xrange(num_threads):
+        thread = threading.Thread(target=__download_tiles_from_queue,
+                args=(tile_type, tile_queue, tile_store, 0.1, 3, verbose))
+        thread.daemon = True
+        threads.append(thread)
+        thread.start()
 
     for z in zoom_levels:
         # translate vertices to the given zoom level, then to coordinate pairs
@@ -82,11 +95,18 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
         # get the area for the points
         area = Polygon.generate_area(points)
 
-        # convert points back in to tiles
-        area_tiles = (Tile.from_google(p[0], p[1], z) for p in area)
+        # convert points back in to tiles and feed them to the queue
+        for tile in (Tile.from_google(p[0], p[1], z) for p in area):
+            item = (0, tile)
+            while 1:
+                try:
+                    tile_queue.put(item, True, 1)
+                    break
+                except queue.Full:
+                    continue
 
-        # download all the tiles in the area for this zoom level
-        download(tile_type, area_tiles, tile_store, num_threads, verbose)
+    # wait for all the threads to finish
+    [thread.join() for thread in threads]
 
 def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
         timeout=0.1, max_failures=3, verbose=True):
@@ -825,4 +845,4 @@ if __name__ == "__main__":
 
     #download(Tile.TYPE_MAP, ut_tiles, MongoTileStore())
     #download(Tile.TYPE_MAP, uniform_tiles, FileTileStore())
-    #download_area(Tile.TYPE_MAP, ut_corners, NullTileStore(), range(20))
+    download_area(Tile.TYPE_MAP, ut_corners, NullTileStore(), range(20))
