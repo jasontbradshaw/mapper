@@ -544,10 +544,11 @@ class Polygon:
         return Polygon.Bounds(top=top, right=right, bottom=bottom, left=left)
 
     @staticmethod
-    def generate_vertex_pairs(vertices):
+    def generate_vertex_pairs(vertices, exclude_horizontal=False):
         """
         Generates paired vertices from a list of vertices, including from last
-        vertex to first vertex.
+        vertex to first vertex. If exclude_horizontal is True, horizontal edge
+        pairs are not yielded.
 
         Examples:
             [] -> []
@@ -567,7 +568,13 @@ class Polygon:
                 last_point = point
                 continue
 
-            yield (last_point, point)
+            # only yield non-horizontal edges if we're exluding them
+            if exclude_horizontal:
+                if point[1] != last_point[1]:
+                    yield (last_point, point)
+            else:
+                yield (last_point, point)
+
             last_point = point
 
         # add the pair from last to first
@@ -645,8 +652,7 @@ class Polygon:
             return
 
         # get all lines, keeping only non-horizontal lines
-        lines = [pair for pair in Polygon.generate_vertex_pairs(vertices)]
-        lines = filter(lambda p: p[0][1] != p[1][1], lines)
+        lines = [pair for pair in Polygon.generate_vertex_pairs(vertices, True)]
 
         # find the bounds for the whole polygon
         polygon_bounds = Polygon.get_bounds(*vertices)
