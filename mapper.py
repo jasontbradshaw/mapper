@@ -641,6 +641,10 @@ class Polygon:
         collapse = lambda a, p: a + [p] if (len(a) == 0 or p != a[-1]) else a
         vertices = reduce(collapse, vertices, [])
 
+        # remove identical start/end vertices as well
+        while len(vertices) > 0 and vertices[0] == vertices[-1]:
+            vertices.pop()
+
         # don't bother with calculations for corner cases
         if len(vertices) <= 1:
             for v in vertices:
