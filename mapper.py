@@ -514,8 +514,8 @@ class Polygon:
     def get_bounds(*vertices):
         """
         Returns a Bounds object containing data about the bounding box that
-        contains the given points. If multiple points are at the bounds, the
-        first is used. If one point satisfies multiple bounds, it will be used
+        contains the given vertices. If multiple vertices are at the bounds, the
+        first is used. If one vertex satisfies multiple bounds, it will be used
         multiple times.
         """
 
