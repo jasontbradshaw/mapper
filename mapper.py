@@ -673,7 +673,7 @@ class Polygon:
                 yield v
             return
         elif len(vertices) == 2:
-            for point in Polygon.generate_line(vertices):
+            for point in Polygon.generate_line(*vertices):
                 yield point
             return
 
