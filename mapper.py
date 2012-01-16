@@ -198,13 +198,13 @@ class Tile:
     KIND_MERCATOR = "mercator"
 
     # our various tile types
+    TYPE_BIKE = TileType("bike", "r")
     TYPE_MAP = TileType("map", "m")
-    TYPE_TERRAIN = TileType("terrain", "p")
-    TYPE_TERRAIN_PLAIN = TileType("terrain_plain", "t")
     TYPE_OVERLAY = TileType("overlay", "h")
     TYPE_SATELLITE = TileType("satellite", "y")
     TYPE_SATELLITE_PLAIN = TileType("satellite_plain", "s")
-    TYPE_BIKE = TileType("bike", "r")
+    TYPE_TERRAIN = TileType("terrain", "p")
+    TYPE_TERRAIN_PLAIN = TileType("terrain_plain", "t")
 
     # the default size of square tiles
     DEFAULT_TILE_SIZE = 256
@@ -808,13 +808,13 @@ if __name__ == "__main__":
 
     # all the types of tiles available for download
     TILE_TYPES = {
+        Tile.TYPE_BIKE.name: Tile.TYPE_BIKE,
         Tile.TYPE_MAP.name: Tile.TYPE_MAP,
-        Tile.TYPE_TERRAIN.name: Tile.TYPE_TERRAIN,
-        Tile.TYPE_TERRAIN_PLAIN.name: Tile.TYPE_TERRAIN_PLAIN,
         Tile.TYPE_OVERLAY.name: Tile.TYPE_OVERLAY,
         Tile.TYPE_SATELLITE.name: Tile.TYPE_SATELLITE,
         Tile.TYPE_SATELLITE_PLAIN.name: Tile.TYPE_SATELLITE_PLAIN,
-        Tile.TYPE_BIKE.name: Tile.TYPE_BIKE
+        Tile.TYPE_TERRAIN.name: Tile.TYPE_TERRAIN,
+        Tile.TYPE_TERRAIN_PLAIN.name: Tile.TYPE_TERRAIN_PLAIN,
     }
 
     parser = argparse.ArgumentParser(
