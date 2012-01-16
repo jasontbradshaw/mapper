@@ -792,4 +792,109 @@ class Polygon:
         return [point for point in Polygon.generate_area(vertices)]
 
 if __name__ == "__main__":
-    pass
+    import argparse
+    import sys
+
+    # constant values for zoom levels
+    MIN_ZOOM = 0
+    MAX_ZOOM = 21
+
+    # various tile stores we're allowed to use
+    TILE_STORES = {
+        "null": NullTileStore,
+        "file": FileTileStore,
+        "mongo": MongoTileStore
+    }
+
+    # all the types of tiles available for download
+    TILE_TYPES = {
+        Tile.TYPE_MAP.name: Tile.TYPE_MAP,
+        Tile.TYPE_TERRAIN.name: Tile.TYPE_TERRAIN,
+        Tile.TYPE_TERRAIN_PLAIN.name: Tile.TYPE_TERRAIN_PLAIN,
+        Tile.TYPE_OVERLAY.name: Tile.TYPE_OVERLAY,
+        Tile.TYPE_SATELLITE.name: Tile.TYPE_SATELLITE,
+        Tile.TYPE_SATELLITE_PLAIN.name: Tile.TYPE_SATELLITE_PLAIN,
+        Tile.TYPE_BIKE.name: Tile.TYPE_BIKE
+    }
+
+    parser = argparse.ArgumentParser(
+            description="Download an area of map tiles from Google maps.")
+
+    # whether we should suppress output or not
+    parser.add_argument("-q", "--quiet", action="store_true",
+            help="suppress logging to console while downloading")
+
+    # min and max zoom to download, inclusive
+    parser.add_argument("-m", "--min-zoom", type=int, default=0,
+            help="minimum zoom to download (" + str(MIN_ZOOM) + "-" +
+            str(MAX_ZOOM) + ")")
+    parser.add_argument("-z", "--max-zoom", type=int, default=0,
+            help="maximum zoom to download (" + str(MIN_ZOOM) + "-" +
+            str(MAX_ZOOM) + ")")
+
+    # type of tile to download
+    parser.add_argument("-t", "--tile-type", default="map",
+            choices=TILE_TYPES, help="type of tile to download")
+
+    # number of threads to use
+    parser.add_argument("-n", "--num-threads", type=int, default=10,
+            help="number of download threads to use (default 10)")
+
+    # shape files to parse areas from
+    parser.add_argument("shape_file", type=os.path.abspath,
+            help="shape file to download")
+
+    # where to store tiles
+    parser.add_argument("-s", "--tile-store", default="file",
+            choices=["null", "file", "mongo"],
+            help="where tiles are stored")
+
+    # TODO: add specific options for various tiles stores
+
+    args = parser.parse_args()
+
+    # enforce zoom levels (custom to prevent ultra-verbose default output)
+    if args.min_zoom < MIN_ZOOM or args.min_zoom > MAX_ZOOM:
+        print parser.format_usage().strip()
+        print ("mapper.py: error: argument -m/--min-zoom: invalid zoom: " +
+                repr(args.min_zoom) + " (must be between " + str(MIN_ZOOM) +
+                "-" + str(MAX_ZOOM) + ")")
+        sys.exit(1)
+
+    if args.max_zoom < MIN_ZOOM or args.max_zoom > MAX_ZOOM:
+        print parser.format_usage().strip()
+        print ("mapper.py: error: argument -z/--max-zoom: invalid zoom: " +
+                repr(args.max_zoom) + " (must be between " + str(MIN_ZOOM) +
+                "-" + str(MAX_ZOOM) + ")")
+        sys.exit(2)
+
+    if args.max_zoom < args.min_zoom:
+        print parser.format_usage().strip()
+        print ("mapper.py: error: argument -z/--max-zoom: invalid zoom: " +
+                repr(args.max_zoom) + " (must be larger than the min zoom)")
+        sys.exit(3)
+
+    # enforce thread count
+    if args.num_threads < 1:
+        print parser.format_usage().strip()
+        print ("mapper.py: error: argument --num-threads: invalid thread count: " +
+                repr(args.num_threads) + " (must be >= 1)")
+        sys.exit(4)
+
+    # turn tile type string into a tile type object
+    tile_type = TILE_TYPES[args.tile_type]
+
+    # get the zoom levels we'll download (arg ranges are inclusive)
+    zoom_levels = xrange(args.min_zoom, args.max_zoom + 1)
+
+    # create a tile store based on the specified string
+    tile_store = TILE_STORES[args.tile_store]()
+
+    # download the area from the shape file
+    shape_vertices = parse_shape_file(args.shape_file)
+    download_area(tile_type, shape_vertices, tile_store, zoom_levels,
+            num_threads=args.num_threads, verbose=not args.quiet)
+
+    # great success!
+    sys.exit(0)
+
