@@ -664,7 +664,7 @@ class Polygon:
         vertices = reduce(collapse, vertices, [])
 
         # remove identical start/end vertices as well
-        while len(vertices) > 0 and vertices[0] == vertices[-1]:
+        while len(vertices) > 1 and vertices[0] == vertices[-1]:
             vertices.pop()
 
         # don't bother with calculations for corner cases
