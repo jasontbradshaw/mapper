@@ -108,6 +108,28 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
     # wait for all the threads to finish
     [thread.join() for thread in threads]
 
+def parse_shape_file(shape_file):
+    """
+    Parses a shape file and returns a list of coordinates as tiles.
+
+    Files are expected to be in the format:
+      (<latitude_float0>, <longitude_float0>)\n
+      (<latitude_float1>, <longitude_float1>)\n
+      ...
+      (<latitude_floatN>, <longitude_floatN>)\n
+    """
+
+    coords = []
+    with open(shape_file, "r") as sf:
+        for line in sf:
+            # strip whitespace and parens, split by comma
+            lat, lng = line.strip().strip("()").split(",")
+
+            # strip remaining whitespace, cast to float, make tuple
+            coords.append(Tile.from_mercator(float(lat), float(lng), 0))
+
+    return coords
+
 def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
         timeout=0.1, max_failures=3, verbose=True):
     """
