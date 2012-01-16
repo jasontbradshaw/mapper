@@ -176,13 +176,13 @@ class Tile:
     KIND_MERCATOR = "mercator"
 
     # our various tile types
-    TYPE_MAP = TileType("Map", "m")
-    TYPE_TERRAIN = TileType("Terrain", "p")
-    TYPE_TERRAIN_PLAIN = TileType("Terrain (plain)", "t")
-    TYPE_OVERLAY = TileType("Overlay", "h")
-    TYPE_SATELLITE = TileType("Satellite", "y")
-    TYPE_SATELLITE_PLAIN = TileType("Sattelite (plain)", "s")
-    TYPE_BIKE = TileType("Bike", "r")
+    TYPE_MAP = TileType("map", "m")
+    TYPE_TERRAIN = TileType("terrain", "p")
+    TYPE_TERRAIN_PLAIN = TileType("terrain_plain", "t")
+    TYPE_OVERLAY = TileType("overlay", "h")
+    TYPE_SATELLITE = TileType("satellite", "y")
+    TYPE_SATELLITE_PLAIN = TileType("satellite_plain", "s")
+    TYPE_BIKE = TileType("bike", "r")
 
     # the default size of square tiles
     DEFAULT_TILE_SIZE = 256
