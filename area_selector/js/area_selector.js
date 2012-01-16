@@ -102,12 +102,22 @@ var setupMap = function () {
         mapTypeControl: true,
     });
 
+    // add custom controls for the help text and the zoom indicator
+    var helpBox = $("#help");
+    map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(helpBox.get(0));
+
+    var zoomIndicator = $("#zoom_indicator");
+    map.controls[google.maps.ControlPosition.LEFT_TOP].push(zoomIndicator.get(0));
+
     // go to the last coordinates of the map if there were any
     if (localStorage.getItem("lastMapView") !== null) {
         var lastView = JSON.parse(localStorage.getItem("lastMapView"));
         map.panTo(new google.maps.LatLng(lastView.latitude, lastView.longitude));
         map.setZoom(lastView.zoom);
     }
+
+    // set the zoom indicator's text after we load the zoom
+    zoomIndicator.text(map.getZoom());
 
     // store the current view of the map so we can reload it next time
     var storeLastView = function () {
@@ -125,6 +135,9 @@ var setupMap = function () {
 
     google.maps.event.addListener(map, "zoom_changed", function () {
         storeLastView();
+
+        // also, update the zoom indicator with the current zoom level
+        zoomIndicator.text(map.getZoom());
     });
 
     return map;

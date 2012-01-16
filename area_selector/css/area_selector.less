@@ -16,6 +16,15 @@
     -khtml-box-shadow: @arguments;
 }
 
+.border-radius(@radius) {
+    border-radius: @arguments;
+    -webkit-border-radius: @arguments;
+    -moz-border-radius: @arguments;
+    -ms-border-radius: @arguments;
+    -o-border-radius: @arguments;
+    -khtml-border-radius: @arguments;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -27,38 +36,38 @@ body {
     color: rgb(60, 60, 60);
 }
 
-// position at bottom of screen
-#help-container {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 5px;
+.control {
+    font-size: 13px;
+    background-color: white;
+    border: 1px solid rgba(0, 0, 0, 0.5);
+
+    // present controls as a box with no selecting, highlighting, or clicking
+    cursor: default;
+    .user-select(none);
+
+    .box-shadow(0, 3px, 7px, 0px, rgb(75, 75, 75));
 }
 
 #help {
-    // center in the container
     width: 669px;
-    margin-left: auto;
-    margin-right: auto;
-
-    background-color: white;
-
-    // match the other controls
-    font-size: 13px;
-
-    border: 1px solid rgba(0, 0, 0, 0.5);
+    margin-bottom: 10px;
 
     @padding: 2px;
     padding-top: @padding - 1px;
     padding-bottom: @padding + 1px;
     padding-left: @padding * 3;
     padding-right: @padding * 3;
+}
 
-    // present this as a static box, with no selecting, highlighting, or clicking
-    cursor: default;
-    .user-select(none);
+#zoom_indicator {
+    width: 24px;
+    text-align: center;
+    line-height: 20px;
+    margin-left: 30px;
 
-    .box-shadow(0, 3px, 7px, 0px, rgb(75, 75, 75));
+    padding-right: 1px;
+
+    .border-radius(3px);
 }
 
 #map {
