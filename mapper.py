@@ -490,13 +490,26 @@ class MongoTileStore(TileStore):
         self.db = self.connection[db]
         self.collection = self.db[collection]
 
+        # make sure the database has our index, building it if necessary.
+        # without this, we'd have to look up every tile to see if already
+        # existed, which becomes unusably slow with lots of tiles (100000+).
+        index = [
+            ("x", pymongo.ASCENDING),
+            ("y", pymongo.ASCENDING),
+            ("zoom", pymongo.ASCENDING),
+            ("tile_type.name", pymongo.ASCENDING),
+            ("tile_type.v", pymongo.ASCENDING)
+        ]
+        self.collection.ensure_index(index, unique=True, drop_dups=True)
+
     def store(self, tile_type, tile, tile_data):
         """
         Store the tile in the database with a Unix update time in seconds. If a
-        tile with the same data already exists, update it accordingly.
+        tile with the same data already exists, update it accordingly. This
+        assumes that an index with unique keys has been added on x, y, zoom,
+        tile_type.name, and tile_type.v.
         """
 
-        # start with base information so we can use it to find existing tiles
         tile = {
             # coordinates
             "x": int(tile.x),
@@ -504,22 +517,17 @@ class MongoTileStore(TileStore):
             "zoom": int(tile.zoom),
 
             # tile type (we're expecting a collections.namedtuple)
-            "tile_type": tile_type._asdict()
+            "tile_type": tile_type._asdict(),
+
+            # image data as binary
+            "image_data": bson.binary.Binary(tile_data),
+
+            # update date, for eventually re-downloading 'old' tiles
+            "update_date": int(time.time())
         }
 
-        # update the id of our 'new' tile to match the stored one
-        stored_tile = self.collection.find_one(tile)
-        if stored_tile is not None:
-            tile["_id"] = stored_tile["_id"]
-
-        # image data as binary
-        tile["image_data"] = bson.binary.Binary(tile_data)
-
-        # update date, for eventually re-downloading 'old' tiles
-        tile["update_date"] = int(time.time())
-
-        # add our tile to the collection, updating if the '_id' is set
-        self.collection.save(tile)
+        # add our tile to the collection, overwriting old data if it exists
+        self.collection.insert(tile)
 
 class Polygon:
     """
