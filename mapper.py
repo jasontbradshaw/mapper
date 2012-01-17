@@ -346,6 +346,8 @@ class Tile:
         try:
             # download the tile and return its image data
             return urllib2.urlopen(request).read()
+        except URLError, e:
+            return None
         except urllib2.HTTPError, e:
             return None
 
