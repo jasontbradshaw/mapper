@@ -950,9 +950,13 @@ if __name__ == "__main__":
         logger = logging
 
     # download the area from the shape file
-    shape_vertices = parse_shape_file(args.shape_file)
-    download_area(tile_type, shape_vertices, tile_store, zoom_levels,
-            num_threads=args.num_threads, logger=logger)
+    try:
+        shape_vertices = parse_shape_file(args.shape_file)
+        download_area(tile_type, shape_vertices, tile_store, zoom_levels,
+                num_threads=args.num_threads, logger=logger)
+    except KeyboardInterrupt:
+        # exit and signal that we were interrupted
+        sys.exit(10)
 
     # great success!
     sys.exit(0)
