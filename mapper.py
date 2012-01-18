@@ -998,15 +998,14 @@ if __name__ == "__main__":
     # build the skip-to-tile
     skip_to_tile = None
     if args.skip_to_tile is not None:
-        skip_to_tile = Tile.from_google(args.skip_to_tile[0], args.skip_to_tile[1],
-                args.skip_to_tile[2])
+        skip_to_tile = Tile.from_google(args.skip_to_tile[0],
+                args.skip_to_tile[1], args.skip_to_tile[2])
 
     # download the area from the shape file
     try:
         shape_vertices = parse_shape_file(args.shape_file)
         download_area(tile_type, shape_vertices, tile_store, zoom_levels,
-                num_threads=args.num_threads,
-                logger=logger,
+                num_threads=args.num_threads, logger=logger,
                 skip_to_tile=skip_to_tile)
     except KeyboardInterrupt:
         # exit and signal that we were interrupted
