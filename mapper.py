@@ -946,7 +946,7 @@ if __name__ == "__main__":
     # enforce thread count
     if args.num_threads < 1:
         print parser.format_usage().strip()
-        print ("mapper.py: error: argument --num-threads: invalid thread count: " +
+        print ("mapper.py: error: argument -n/--num-threads: invalid thread count: " +
                 repr(args.num_threads) + " (must be >= 1)")
         sys.exit(4)
 
