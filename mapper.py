@@ -889,11 +889,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
             description="Download an area of map tiles from Google maps.")
 
-    # how verbose our output should be
     parser.add_argument("-l", "--log-level", choices=LOG_LEVELS, default="info",
             help="set the log verbosity (default info)")
 
-    # min and max zoom to download, inclusive
     parser.add_argument("-m", "--min-zoom", type=int, default=0,
             help="minimum zoom to download (" + str(MIN_ZOOM) + "-" +
             str(MAX_ZOOM) + ")")
@@ -901,19 +899,15 @@ if __name__ == "__main__":
             help="maximum zoom to download (" + str(MIN_ZOOM) + "-" +
             str(MAX_ZOOM) + ")")
 
-    # type of tile to download
     parser.add_argument("-t", "--tile-type", default="map",
             choices=TILE_TYPES, help="type of tile to download")
 
-    # number of threads to use
     parser.add_argument("-n", "--num-threads", type=int, default=10,
             help="number of download threads to use (default 10)")
 
-    # shape files to parse areas from
     parser.add_argument("shape_file", type=os.path.abspath,
             help="shape file to download")
 
-    # where to store tiles
     parser.add_argument("-s", "--tile-store", default="file",
             choices=["null", "file", "mongo"],
             help="where tiles are stored")
