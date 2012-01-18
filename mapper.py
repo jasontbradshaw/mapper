@@ -27,11 +27,14 @@ def download(tile_type, tiles, tile_store, num_threads=10, logger=None):
     # the queue our threads will pull tiles from (least-failed tiles first)
     tile_queue = queue.PriorityQueue(num_threads * 10)
 
+    # an event for telling our threads when to stop waiting for tiles
+    halt_event = threading.Event()
+
     # start our threads; they will wait indefinitely for tiles to download
     threads = []
     for i in xrange(num_threads):
-        thread = threading.Thread(target=__download_tiles_from_queue,
-                args=(tile_type, tile_queue, tile_store, 0.1, 3, logger))
+        args = (tile_type, tile_queue, tile_store, 0.1, 3, halt_event, logger)
+        thread = threading.Thread(target=__download_tiles_from_queue, args=args)
         thread.daemon = True
         threads.append(thread)
         thread.start()
@@ -53,7 +56,9 @@ def download(tile_type, tiles, tile_store, num_threads=10, logger=None):
     tile_queue.join()
     logging.debug("Queue stopped processing")
 
-    # TODO: use a condition object to tell download threads to stop
+    # signal that we're done downloading
+    logging.debug("Signaling threads to halt")
+    halt_event.set()
 
     # wait for all the threads to finish
     logging.debug("Joining all downloader threads...")
@@ -80,11 +85,12 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
     logger = __get_null_logger() if logger is None else logger
 
     tile_queue = queue.PriorityQueue(num_threads * 10)
+    halt_event = threading.Event()
 
     threads = []
     for i in xrange(num_threads):
-        thread = threading.Thread(target=__download_tiles_from_queue,
-                args=(tile_type, tile_queue, tile_store, 0.1, 3, logger))
+        args = (tile_type, tile_queue, tile_store, 0.1, 3, halt_event, logger)
+        thread = threading.Thread(target=__download_tiles_from_queue, args=args)
         thread.daemon = True
         threads.append(thread)
         thread.start()
@@ -135,14 +141,13 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
                 except queue.Full:
                     continue
 
-    # wait for all tiles to be processed
     logging.debug("Telling queue processing has stopped...")
     tile_queue.join()
     logging.debug("Queue stopped processing")
 
-    # TODO: use a condition object to tell download threads to stop
+    logging.debug("Signaling threads to halt")
+    halt_event.set()
 
-    # wait for all the threads to finish
     logging.debug("Joining all downloader threads...")
     [thread.join() for thread in threads]
     logging.debug("Downloader threads joined")
@@ -190,13 +195,14 @@ def __get_null_logger():
     return null_logger
 
 def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
-        timeout, max_failures, logger=None):
+        timeout, max_failures, halt_event, logger=None):
     """
     Downloads all the tiles in a queue for some type and stores them in the tile
     store. Will re-insert failed downloads into the queue for later processing,
     but only up to max_failures times. timeout specifies the amount of time in
     seconds downloading threads will wait for new tiles to enter the queue
-    before giving up and ending their download loops.
+    before giving up and ending their download loops. halt_event is an event
+    object indicating whether we should stop downloading.
     """
 
     # use a default logger if none was specified
@@ -205,19 +211,15 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
     # get the current thread name for use in log messages
     tname = threading.current_thread().name
 
-    first = True
     while 1:
+        # halt when told in addition to halting when there are no more tiles
+        if halt_event.wait(0):
+            logger.debug(tname + " got halt signal")
+            break
+
         try:
-            # intially, wait indefinitely for data to show up in the queue
-            if first:
-                logger.debug(tname + " waiting on tile queue...")
-
-                fail_count, tile = tile_queue.get()
-                first = False
-
-                logger.debug(tname + " got first tile " + str(tile))
-            else:
-                fail_count, tile = tile_queue.get(True, timeout)
+            # pull a tile from the queue
+            fail_count, tile = tile_queue.get(True, timeout)
 
             try:
                 # download and store the tile data
@@ -262,10 +264,9 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
             # signal that we finished processing this tile
             tile_queue.task_done()
 
-        # stop once the queue is empty
+        # keep trying until told to halt
         except queue.Empty:
-            logger.debug(tname + " got no data from queue")
-            break
+            continue
 
     logger.debug(tname + " exiting")
 
