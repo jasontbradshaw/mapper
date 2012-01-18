@@ -67,10 +67,11 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
     if num_threads <= 0:
         raise ValueError("num_threads must be greater than 0")
 
-    # the queue our threads will pull tiles from (least-failed tiles first)
+    # use a default logger if none was specified
+    logger = __get_null_logger() if logger is None else logger
+
     tile_queue = queue.PriorityQueue(num_threads * 10)
 
-    # start our threads; they will wait a bit for tiles to download
     threads = []
     for i in xrange(num_threads):
         thread = threading.Thread(target=__download_tiles_from_queue,
@@ -79,7 +80,20 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
         threads.append(thread)
         thread.start()
 
+    # whether we should skip tiles
+    should_skip = skip_to_tile is not None
+
+    # log that we're skipping, so it doesn't look like we froze
+    if should_skip:
+        logger.info("Skipping to " + str(skip_to_tile) + "...")
+
     for z in zoom_levels:
+
+        # skip entire zoom levels if necessary to find the first non-skip tile
+        if should_skip and skip_to_tile.zoom != z:
+            logger.debug("Skipping zoom " + str(z))
+            continue
+
         # translate vertices to the given zoom level, then to coordinate pairs
         points = []
         for v in vertices:
@@ -89,22 +103,20 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
         # get the area for the points
         area = Polygon.generate_area(points)
 
-        # skip entire zoom levels if necessary
-        if skip_to_tile is not None and skip_to_tile.zoom != z:
-            continue
-
         # convert points back into tiles and feed them to the queue
         for tile in (Tile.from_google(p[0], p[1], z) for p in area):
             # skip to the specified tile if necessary
-            if skip_to_tile is not None:
-                # skip tiles that aren't equal to the given tile
-                if not (tile.x == skip_to_tile.x and
+            if should_skip:
+                # disable skipping once we find the specified tile
+                if (tile.x == skip_to_tile.x and
                         tile.y == skip_to_tile.y and
                         tile.zoom == skip_to_tile.zoom):
+                    logger.info("Skipped to tile " + str(tile))
+                    should_skip = False
+                else:
+                    # otherwise, skip tiles that don't match
+                    logger.debug("Skipping " + str(tile))
                     continue
-
-            # disable skipping once we find the first qualifying tile
-            skip_to_tile = None
 
             item = (0, tile)
             while 1:
@@ -912,6 +924,9 @@ if __name__ == "__main__":
             choices=["null", "file", "mongo"],
             help="where tiles are stored")
 
+    parser.add_argument("-k", "--skip-to-tile", nargs=3, type=int, default=None,
+            help="tile to skip to before downloading tiles (format 'x y zoom'")
+
     # TODO: add specific options for various tiles stores
 
     args = parser.parse_args()
@@ -959,11 +974,19 @@ if __name__ == "__main__":
         logging.basicConfig(level=LOG_LEVELS[args.log_level])
         logger = logging
 
+    # build the skip-to-tile
+    skip_to_tile = None
+    if args.skip_to_tile is not None:
+        skip_to_tile = Tile.from_google(args.skip_to_tile[0], args.skip_to_tile[1],
+                args.skip_to_tile[2])
+
     # download the area from the shape file
     try:
         shape_vertices = parse_shape_file(args.shape_file)
         download_area(tile_type, shape_vertices, tile_store, zoom_levels,
-                num_threads=args.num_threads, logger=logger)
+                num_threads=args.num_threads,
+                logger=logger,
+                skip_to_tile=skip_to_tile)
     except KeyboardInterrupt:
         # exit and signal that we were interrupted
         sys.exit(10)
