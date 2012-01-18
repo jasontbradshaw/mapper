@@ -27,7 +27,7 @@ def download(tile_type, tiles, tile_store, num_threads=10, logger=None):
     # the queue our threads will pull tiles from (least-failed tiles first)
     tile_queue = queue.PriorityQueue(num_threads * 10)
 
-    # start our threads; they will wait a bit for tiles to download
+    # start our threads; they will wait indefinitely for tiles to download
     threads = []
     for i in xrange(num_threads):
         thread = threading.Thread(target=__download_tiles_from_queue,
