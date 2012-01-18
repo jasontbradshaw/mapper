@@ -13,7 +13,7 @@ import urllib2
 import pymongo
 import bson
 
-def download(tile_type, tiles, tile_store, num_threads=10, verbose=True):
+def download(tile_type, tiles, tile_store, num_threads=10, logger=None):
     """
     Downloads some tiles in parallel from an iterable using the given type.
     num_threads is the number of simultaneous threads that will be used to
@@ -31,7 +31,7 @@ def download(tile_type, tiles, tile_store, num_threads=10, verbose=True):
     threads = []
     for i in xrange(num_threads):
         thread = threading.Thread(target=__download_tiles_from_queue,
-                args=(tile_type, tile_queue, tile_store, 0.1, 3, verbose))
+                args=(tile_type, tile_queue, tile_store, 0.1, 3, logger))
         thread.daemon = True
         threads.append(thread)
         thread.start()
@@ -52,7 +52,7 @@ def download(tile_type, tiles, tile_store, num_threads=10, verbose=True):
     [thread.join() for thread in threads]
 
 def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
-        verbose=True):
+        logger=None):
     """
     Download tiles formed from the area described by the given tile vertices.
     vertices should be an in-order list of tiles describing the sequential
@@ -66,11 +66,6 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
     if num_threads <= 0:
         raise ValueError("num_threads must be greater than 0")
 
-    def log(msg):
-        """Log a message to the screen if verbose is True."""
-        if verbose:
-            print msg
-
     # the queue our threads will pull tiles from (least-failed tiles first)
     tile_queue = queue.PriorityQueue(num_threads * 10)
 
@@ -78,7 +73,7 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
     threads = []
     for i in xrange(num_threads):
         thread = threading.Thread(target=__download_tiles_from_queue,
-                args=(tile_type, tile_queue, tile_store, 0.1, 3, verbose))
+                args=(tile_type, tile_queue, tile_store, 0.1, 3, logger))
         thread.daemon = True
         threads.append(thread)
         thread.start()
@@ -89,8 +84,6 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
         for v in vertices:
             zoomed_v = Tile.from_mercator(v.latitude, v.longitude, z)
             points.append((zoomed_v.x, zoomed_v.y))
-
-        log("Downloading area at zoom " + str(z))
 
         # get the area for the points
         area = Polygon.generate_area(points)
@@ -130,8 +123,28 @@ def parse_shape_file(shape_file):
 
     return coords
 
+def __get_null_logger():
+    """
+    Creates a logging.Logger-like object with debug(), info(), warning(),
+    error(), and critical() methods that soak up all log messages passed to
+    them. Returns the logger object.
+    """
+
+    class NullLogger: pass
+    null_logger = NullLogger()
+
+    do_nothing = lambda *args, **kwargs: None
+
+    null_logger.debug = do_nothing
+    null_logger.info = do_nothing
+    null_logger.warning = do_nothing
+    null_logger.error = do_nothing
+    null_logger.critical = do_nothing
+
+    return null_logger
+
 def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
-        timeout=0.1, max_failures=3, verbose=True):
+        timeout=0.1, max_failures=3, logger=None):
     """
     Downloads all the tiles in a queue for some type and stores them in the tile
     store. Will re-insert failed downloads into the queue for later processing,
@@ -140,19 +153,26 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
     before giving up and ending their download loops.
     """
 
-    def log(msg):
-        """Log a message to the screen if verbose is True."""
-        if verbose:
-            print msg
+    # use a default logger if none was specified
+    logger = __get_null_logger() if logger is None else logger
 
     while 1:
         try:
             # wait a bit for data to show up
             fail_count, tile = tile_queue.get(True, timeout)
-            tile_data = tile.download(tile_type)
 
-            # deal with download failures
-            if tile_data is None:
+            try:
+                # download and store the tile data
+                tile_data = tile.download(tile_type)
+                tile_store.store(tile_type, tile, tile_data)
+                logger.info("Downloaded " + str(tile) + " as " + str(tile_type))
+
+            except Tile.TileDownloadError, e:
+                # commone error message parameters
+                t = str(tile)
+                tt = str(tile_type)
+                m = str(e.message)
+
                 # retry if we haven't yet exceeded the max
                 if fail_count < max_failures:
                     # TODO: there might be a dining-philosophers condition here.
@@ -160,22 +180,20 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
                     # then the queue fills up, there will be nobody to make more
                     # room in the queue.
                     tile_queue.put((fail_count + 1, tile))
-                    log("Download of tile " + str(tile) + " as type " +
-                            str(tile_type) + " failed, " +
-                            str(fail_count + 1 - max_failures) +
-                            " retry attempts remaining")
+
+                    rr = str(fail_count + 1 - max_failures)
+                    logger.warning("Download of " + t + " as " + tt +
+                            " failed with message " + m + " (" + rr +
+                            " retry attempts remaining)")
                 else:
                     # give up otherwise
-                    log("Could not download tile " + str(tile) + " as type " +
-                            str(tile_type) + " (out of retries)")
-            else:
-                # store the downloaded tile
-                log("Downloaded tile " + str(tile) + " as type " +
-                        str(tile_type))
-                tile_store.store(tile_type, tile, tile_data)
+                    logger.error("Download of " + t + " as " + tt +
+                            " failed with message " + m + " (out of retries)")
 
             # signal that we finished processing this tile
             tile_queue.task_done()
+
+        # stop once the queue is empty
         except queue.Empty:
             break
 
@@ -189,6 +207,9 @@ class Tile:
     Conversion formulae gleaned from Jeremy R. Geerdes' post:
       http://groups.google.com/group/google-maps-api/msg/7a0aba451045ed94
     """
+
+    # raised when we couldn't download a tile
+    class TileDownloadError(Exception): pass
 
     # a simple class for tile types with a descriptive name and a URL 'v' value
     TileType = collections.namedtuple("TileType", ["name", "v"])
@@ -328,7 +349,8 @@ class Tile:
     def download(self, tile_type):
         """
         Downloads the image data for this tile and returns it as a binary
-        string, or returns None if no data could be downloaded.
+        string, or returns None if no data could be downloaded. Raises
+        TileDownloadError when tile download fails.
         """
 
         # create the request URL from the template
@@ -346,10 +368,12 @@ class Tile:
         try:
             # download the tile and return its image data
             return urllib2.urlopen(request).read()
-        except URLError, e:
-            return None
+
+        # pass exceptions along for the caller to handle
+        except urllib2.URLError, e:
+            raise TileDownloadError(e.message)
         except urllib2.HTTPError, e:
-            return None
+            raise TileDownloadError(e.message)
 
     def hash_google(self):
         """
@@ -804,6 +828,7 @@ class Polygon:
 if __name__ == "__main__":
     import argparse
     import sys
+    import logging
 
     # constant values for zoom levels
     MIN_ZOOM = 0
@@ -827,12 +852,22 @@ if __name__ == "__main__":
         Tile.TYPE_TERRAIN_PLAIN.name: Tile.TYPE_TERRAIN_PLAIN,
     }
 
+    # the levels of log verbosity we support
+    LOG_LEVELS = {
+        "silent": None,
+        "debug": logging.DEBUG,
+        "info": logging.INFO,
+        "warning": logging.WARNING,
+        "error": logging.ERROR,
+        "critical": logging.CRITICAL,
+    }
+
     parser = argparse.ArgumentParser(
             description="Download an area of map tiles from Google maps.")
 
-    # whether we should suppress output or not
-    parser.add_argument("-q", "--quiet", action="store_true",
-            help="suppress logging to console while downloading")
+    # how verbose our output should be
+    parser.add_argument("-l", "--log-level", choices=LOG_LEVELS, default="info",
+            help="set the log verbosity (default info)")
 
     # min and max zoom to download, inclusive
     parser.add_argument("-m", "--min-zoom", type=int, default=0,
@@ -900,10 +935,16 @@ if __name__ == "__main__":
     # create a tile store based on the specified string
     tile_store = TILE_STORES[args.tile_store]()
 
+    # set up a logger depending on the specified verbosity
+    logger = __get_null_logger()
+    if LOG_LEVELS[args.log_level] is not None:
+        logging.basicConfig(level=LOG_LEVELS[args.log_level])
+        logger = logging
+
     # download the area from the shape file
     shape_vertices = parse_shape_file(args.shape_file)
     download_area(tile_type, shape_vertices, tile_store, zoom_levels,
-            num_threads=args.num_threads, verbose=not args.quiet)
+            num_threads=args.num_threads, logger=logger)
 
     # great success!
     sys.exit(0)
