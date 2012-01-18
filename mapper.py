@@ -232,7 +232,7 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
                     # room in the queue.
                     tile_queue.put((fail_count + 1, tile))
 
-                    rr = str(fail_count + 1 - max_failures)
+                    rr = str(max_failures - fail_count + 1)
                     logger.warning("Download of " + t + " as " + tt +
                             " failed with message '" + m + "' " +
                             "(attempts remaining: " + rr + ")")
