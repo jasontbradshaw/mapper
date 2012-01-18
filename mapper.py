@@ -1009,8 +1009,10 @@ if __name__ == "__main__":
                 skip_to_tile=skip_to_tile)
     except KeyboardInterrupt:
         # exit and signal that we were interrupted
+        logging.shutdown()
         sys.exit(10)
 
     # great success!
+    logging.shutdown()
     sys.exit(0)
 
