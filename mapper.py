@@ -472,11 +472,8 @@ class NullTileStore(TileStore):
     Throws away all tiles given to it. Useful for performance testing.
     """
 
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def store(*args, **kwargs):
-        pass
+    def __init__(*args, **kwargs): pass
+    def store(*args, **kwargs): pass
 
 class FileTileStore(TileStore):
     """
