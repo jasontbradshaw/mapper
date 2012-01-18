@@ -201,7 +201,7 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
 
                 tile_store.store(tile_type, tile, tile_data)
                 logger.debug("Downloaded and stored " + str(len(tile_data)) +
-                        " bytes.")
+                        " bytes")
 
             except Tile.TileDownloadError, e:
                 # common error message parameters
@@ -219,12 +219,12 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
 
                     rr = str(fail_count + 1 - max_failures)
                     logger.warning("Download of " + t + " as " + tt +
-                            " failed with message " + m + " (" + rr +
-                            " retry attempts remaining)")
+                            " failed with message '" + m + "' " +
+                            "(attempts remaining: " + rr + ")")
                 else:
                     # give up otherwise
                     logger.error("Download of " + t + " as " + tt +
-                            " failed with message " + m + " (out of retries)")
+                            " failed with message '" + m + "' (out of retries)")
 
             # signal that we finished processing this tile
             tile_queue.task_done()
@@ -232,6 +232,8 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
         # stop once the queue is empty
         except queue.Empty:
             break
+
+    logger.debug("Thread '" + threading.current_thread().name + "' exited")
 
 class Tile:
     """
