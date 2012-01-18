@@ -142,8 +142,8 @@ def __get_null_logger():
 
     return null_logger
 
-def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
-        timeout, max_failures, halt_event, logger=None):
+def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
+        max_failures, halt_event, logger=None):
     """
     Downloads all the tiles in a queue for some type and stores them in the tile
     store. Will re-insert failed downloads into the queue for later processing,
