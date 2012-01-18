@@ -87,24 +87,24 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
     if should_skip:
         logger.info("Skipping to " + str(skip_to_tile) + "...")
 
-    for z in zoom_levels:
+    for zoom in zoom_levels:
 
         # skip entire zoom levels if necessary to find the first non-skip tile
-        if should_skip and skip_to_tile.zoom != z:
-            logger.debug("Skipping zoom " + str(z))
+        if should_skip and skip_to_tile.zoom != zoom:
+            logger.debug("Skipping zoom level " + str(zoom))
             continue
 
         # translate vertices to the given zoom level, then to coordinate pairs
         points = []
         for v in vertices:
-            zoomed_v = Tile.from_mercator(v.latitude, v.longitude, z)
+            zoomed_v = Tile.from_mercator(v.latitude, v.longitude, zoom)
             points.append((zoomed_v.x, zoomed_v.y))
 
         # get the area for the points
         area = Polygon.generate_area(points)
 
         # convert points back into tiles and feed them to the queue
-        for tile in (Tile.from_google(p[0], p[1], z) for p in area):
+        for tile in (Tile.from_google(p[0], p[1], zoom) for p in area):
             # skip to the specified tile if necessary
             if should_skip:
                 # disable skipping once we find the specified tile
@@ -184,24 +184,39 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
     # use a default logger if none was specified
     logger = __get_null_logger() if logger is None else logger
 
+    # get the current thread name for use in log messages
+    tname = "'" + threading.current_thread().name + "'"
+
     first = True
     while 1:
         try:
             # intially, wait indefinitely for data to show up in the queue
             if first:
+                logger.debug("Thread " + tname + " waiting on tile queue...")
+
                 fail_count, tile = tile_queue.get()
                 first = False
+
+                logger.debug("Thread " + tname + " got first tile " + str(tile))
             else:
                 fail_count, tile = tile_queue.get(True, timeout)
 
             try:
                 # download and store the tile data
+                logger.debug("Thread " + tname + " downloading " + str(tile) +
+                        " as " + str(tile_type) + "...")
+
                 tile_data = tile.download(tile_type)
                 logger.info("Downloaded " + str(tile) + " as " + str(tile_type))
 
+                logger.debug("Thread " + tname + " downloaded " +
+                        str(len(tile_data)) + " bytes")
+
+                logger.debug("Thread " + tname + " storing " + str(tile) + "...")
+
                 tile_store.store(tile_type, tile, tile_data)
-                logger.debug("Downloaded and stored " + str(len(tile_data)) +
-                        " bytes")
+
+                logger.debug("Thread " + tname + " stored " + str(tile))
 
             except Tile.TileDownloadError, e:
                 # common error message parameters
@@ -231,9 +246,10 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
 
         # stop once the queue is empty
         except queue.Empty:
+            logger.debug("Thread " + tname + " got no data from queue")
             break
 
-    logger.debug("Thread '" + threading.current_thread().name + "' exited")
+    logger.debug("Thread " + tname + " exiting")
 
 class Tile:
     """
