@@ -52,14 +52,15 @@ def download(tile_type, tiles, tile_store, num_threads=10, logger=None):
     [thread.join() for thread in threads]
 
 def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
-        logger=None):
+        logger=None, skip_to_tile=None):
     """
     Download tiles formed from the area described by the given tile vertices.
     vertices should be an in-order list of tiles describing the sequential
     vertices of a non-complex polygon, preferrably with accurate Mercator
     coordinates (these translate between zoom levels best). zoom_levels is a
-    list of zoom levels to download. See download() for an explanation of the
-    other parameters.
+    list of zoom levels to download. If skip_to_tile is non-None, all preceding
+    tiles not equal to the given tile will be skipped. See download() for an
+    explanation of the other parameters.
     """
 
     # check our thread count to make sure we'll get workers
@@ -88,8 +89,23 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
         # get the area for the points
         area = Polygon.generate_area(points)
 
-        # convert points back in to tiles and feed them to the queue
+        # skip entire zoom levels if necessary
+        if skip_to_tile is not None and skip_to_tile.zoom != z:
+            continue
+
+        # convert points back into tiles and feed them to the queue
         for tile in (Tile.from_google(p[0], p[1], z) for p in area):
+            # skip to the specified tile if necessary
+            if skip_to_tile is not None:
+                # skip tiles that aren't equal to the given tile
+                if not (tile.x == skip_to_tile.x and
+                        tile.y == skip_to_tile.y and
+                        tile.zoom == skip_to_tile.zoom):
+                    continue
+
+            # disable skipping once we find the first qualifying tile
+            skip_to_tile = None
+
             item = (0, tile)
             while 1:
                 try:
@@ -159,9 +175,9 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
     first = True
     while 1:
         try:
-            # wait a long time initially for data to show up in the queue
+            # intially, wait indefinitely for data to show up in the queue
             if first:
-                fail_count, tile = tile_queue.get(True, 30)
+                fail_count, tile = tile_queue.get()
                 first = False
             else:
                 fail_count, tile = tile_queue.get(True, timeout)
