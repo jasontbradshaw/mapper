@@ -921,6 +921,8 @@ if __name__ == "__main__":
 
     parser.add_argument("-l", "--log-level", choices=LOG_LEVELS, default="info",
             help="set the log verbosity (default info)")
+    parser.add_argument("-f", "--log-file", type=os.path.abspath, default=None,
+            help="if specified, logs to the given file rather than the screen")
 
     parser.add_argument("-m", "--min-zoom", type=int, default=0,
             help="minimum zoom to download (" + str(MIN_ZOOM) + "-" +
@@ -930,7 +932,7 @@ if __name__ == "__main__":
             str(MAX_ZOOM) + ")")
 
     parser.add_argument("-t", "--tile-type", default="map",
-            choices=TILE_TYPES, help="type of tile to download")
+            choices=TILE_TYPES, help="type of tile to download (default map)")
 
     parser.add_argument("-n", "--num-threads", type=int, default=10,
             help="number of download threads to use (default 10)")
@@ -989,7 +991,8 @@ if __name__ == "__main__":
     # set up a logger depending on the specified verbosity
     logger = __get_null_logger()
     if LOG_LEVELS[args.log_level] is not None:
-        logging.basicConfig(level=LOG_LEVELS[args.log_level])
+        logging.basicConfig(level=LOG_LEVELS[args.log_level],
+                filename=args.log_file)
         logger = logging
 
     # build the skip-to-tile
