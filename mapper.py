@@ -952,7 +952,7 @@ if __name__ == "__main__":
     # create a tile store based on the specified string
     tile_store = TILE_STORES[args.tile_store]()
 
-    # set up a logger depending on the specified verbosity
+    # set up a logger depending on the specified verbosity and file name
     logger = __get_null_logger()
     if LOG_LEVELS[args.log_level] is not None:
         logging.basicConfig(level=LOG_LEVELS[args.log_level],
