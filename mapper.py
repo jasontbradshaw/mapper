@@ -100,48 +100,6 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
     [thread.join() for thread in threads]
     logging.debug("Downloader threads joined")
 
-def parse_shape_file(shape_file):
-    """
-    Parses a shape file and returns a list of coordinates as tiles.
-
-    Files are expected to be in the format:
-      (<latitude_float0>, <longitude_float0>)\n
-      (<latitude_float1>, <longitude_float1>)\n
-      ...
-      (<latitude_floatN>, <longitude_floatN>)\n
-    """
-
-    coords = []
-    with open(shape_file, "r") as sf:
-        for line in sf:
-            # strip whitespace and parens, split by comma
-            lat, lng = line.strip().strip("()").split(",")
-
-            # strip remaining whitespace, cast to float, make tuple
-            coords.append(Tile.from_mercator(float(lat), float(lng), 0))
-
-    return coords
-
-def __get_null_logger():
-    """
-    Creates a logging.Logger-like object with debug(), info(), warning(),
-    error(), and critical() methods that soak up all log messages passed to
-    them. Returns the logger object.
-    """
-
-    class NullLogger: pass
-    null_logger = NullLogger()
-
-    do_nothing = lambda *args, **kwargs: None
-
-    null_logger.debug = do_nothing
-    null_logger.info = do_nothing
-    null_logger.warning = do_nothing
-    null_logger.error = do_nothing
-    null_logger.critical = do_nothing
-
-    return null_logger
-
 def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
         max_failures, halt_event, logger=None):
     """
@@ -217,6 +175,48 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
             continue
 
     logger.debug(tname + " exiting")
+
+def parse_shape_file(shape_file):
+    """
+    Parses a shape file and returns a list of coordinates as tiles.
+
+    Files are expected to be in the format:
+      (<latitude_float0>, <longitude_float0>)\n
+      (<latitude_float1>, <longitude_float1>)\n
+      ...
+      (<latitude_floatN>, <longitude_floatN>)\n
+    """
+
+    coords = []
+    with open(shape_file, "r") as sf:
+        for line in sf:
+            # strip whitespace and parens, split by comma
+            lat, lng = line.strip().strip("()").split(",")
+
+            # strip remaining whitespace, cast to float, make tuple
+            coords.append(Tile.from_mercator(float(lat), float(lng), 0))
+
+    return coords
+
+def __get_null_logger():
+    """
+    Creates a logging.Logger-like object with debug(), info(), warning(),
+    error(), and critical() methods that soak up all log messages passed to
+    them. Returns the logger object.
+    """
+
+    class NullLogger: pass
+    null_logger = NullLogger()
+
+    do_nothing = lambda *args, **kwargs: None
+
+    null_logger.debug = do_nothing
+    null_logger.info = do_nothing
+    null_logger.warning = do_nothing
+    null_logger.error = do_nothing
+    null_logger.critical = do_nothing
+
+    return null_logger
 
 class Tile:
     """
