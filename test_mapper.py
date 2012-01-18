@@ -89,6 +89,4 @@ uniform_tiles = [
     Tile.from_google(119822, 215827, 19) # cemetary, university, others?
 ]
 
-#mapper.download(Tile.TYPE_MAP, ut_tiles, MongoTileStore())
-#mapper.download(Tile.TYPE_MAP, uniform_tiles, FileTileStore())
 #mapper.download_area(Tile.TYPE_MAP, ut_corners, NullTileStore(), range(20))

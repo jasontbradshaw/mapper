@@ -13,58 +13,6 @@ import urllib2
 import pymongo
 import bson
 
-def download(tile_type, tiles, tile_store, num_threads=10, logger=None):
-    """
-    Downloads some tiles in parallel from an iterable using the given type.
-    num_threads is the number of simultaneous threads that will be used to
-    download tiles.
-    """
-
-    # check our thread count to make sure we'll get workers
-    if num_threads <= 0:
-        raise ValueError("num_threads must be greater than 0")
-
-    # the queue our threads will pull tiles from (least-failed tiles first)
-    tile_queue = queue.PriorityQueue(num_threads * 10)
-
-    # an event for telling our threads when to stop waiting for tiles
-    halt_event = threading.Event()
-
-    # start our threads; they will wait indefinitely for tiles to download
-    threads = []
-    for i in xrange(num_threads):
-        args = (tile_type, tile_queue, tile_store, 0.1, 3, halt_event, logger)
-        thread = threading.Thread(target=__download_tiles_from_queue, args=args)
-        thread.daemon = True
-        threads.append(thread)
-        thread.start()
-
-    # feed tiles to the waiting threads as (number of download fails, tile)
-    for tile in tiles:
-        # attempt to fill the queue, but do so in a way that will allow worker
-        # threads to re-insert failed tiles periodically.
-        item = (0, tile)
-        while 1:
-            try:
-                tile_queue.put(item, True, 1)
-                break
-            except queue.Full:
-                continue
-
-    # wait for all tiles to be processed
-    logging.debug("Telling queue processing has stopped...")
-    tile_queue.join()
-    logging.debug("Queue stopped processing")
-
-    # signal that we're done downloading
-    logging.debug("Signaling threads to halt")
-    halt_event.set()
-
-    # wait for all the threads to finish
-    logging.debug("Joining all downloader threads...")
-    [thread.join() for thread in threads]
-    logging.debug("Downloader threads joined")
-
 def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
         logger=None, skip_to_tile=None):
     """
