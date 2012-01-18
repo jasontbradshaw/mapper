@@ -144,7 +144,7 @@ def __get_null_logger():
     return null_logger
 
 def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
-        timeout=0.1, max_failures=3, logger=None):
+        timeout, max_failures, logger=None):
     """
     Downloads all the tiles in a queue for some type and stores them in the tile
     store. Will re-insert failed downloads into the queue for later processing,
@@ -156,16 +156,24 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
     # use a default logger if none was specified
     logger = __get_null_logger() if logger is None else logger
 
+    first = True
     while 1:
         try:
-            # wait a bit for data to show up
-            fail_count, tile = tile_queue.get(True, timeout)
+            # wait a long time initially for data to show up in the queue
+            if first:
+                fail_count, tile = tile_queue.get(True, 30)
+                first = False
+            else:
+                fail_count, tile = tile_queue.get(True, timeout)
 
             try:
                 # download and store the tile data
                 tile_data = tile.download(tile_type)
-                tile_store.store(tile_type, tile, tile_data)
                 logger.info("Downloaded " + str(tile) + " as " + str(tile_type))
+
+                tile_store.store(tile_type, tile, tile_data)
+                logger.debug("Downloaded and stored " + str(len(tile_data)) +
+                        " bytes.")
 
             except Tile.TileDownloadError, e:
                 # commone error message parameters
