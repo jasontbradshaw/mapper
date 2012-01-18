@@ -37,7 +37,7 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
 
     threads = []
     for i in xrange(num_threads):
-        args = (tile_type, tile_queue, tile_store, 0.1, 3, halt_event, logger)
+        args = (tile_type, tile_queue, tile_store, 0.1, 10, halt_event, logger)
         thread = threading.Thread(target=__download_tiles_from_queue, args=args)
         thread.daemon = True
         threads.append(thread)
