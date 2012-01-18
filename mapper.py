@@ -176,7 +176,7 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store,
                         " bytes.")
 
             except Tile.TileDownloadError, e:
-                # commone error message parameters
+                # common error message parameters
                 t = str(tile)
                 tt = str(tile_type)
                 m = str(e.message)
