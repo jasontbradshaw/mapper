@@ -391,9 +391,7 @@ class Tile:
             return urllib2.urlopen(request).read()
 
         # pass exceptions along for the caller to handle
-        except urllib2.URLError, e:
-            raise Tile.TileDownloadError(str(e))
-        except urllib2.HTTPError, e:
+        except Exception, e:
             raise Tile.TileDownloadError(str(e))
 
     def hash_google(self):
