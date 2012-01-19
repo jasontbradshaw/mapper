@@ -32,7 +32,7 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
     # use a default logger if none was specified
     logger = __get_null_logger() if logger is None else logger
 
-    tile_queue = queue.PriorityQueue(num_threads * 10)
+    tile_queue = queue.Queue(num_threads * 10)
     halt_event = threading.Event()
 
     threads = []
