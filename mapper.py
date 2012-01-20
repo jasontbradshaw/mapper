@@ -84,9 +84,11 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
             item = (0, tile)
             while 1:
                 try:
+                    logger.debug("Adding " + str(item) + " to queue")
                     tile_queue.put(item, True, 1)
                     break
                 except queue.Full:
+                    logger.debug("Queue full, retrying 'put' for " + str(item))
                     continue
 
     logger.debug("Telling queue processing has stopped...")
