@@ -67,6 +67,10 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
         # get the area for the points
         area = Polygon.generate_area(points)
 
+        # track tile download rate
+        rate_calculator = RateCalculator(1000, 15)
+        rate_calculator.start()
+
         # convert points back into tiles and feed them to the queue
         for tile in (Tile.from_google(p[0], p[1], zoom) for p in area):
             # skip to the specified tile if necessary
@@ -77,6 +81,10 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
                         tile.zoom == skip_to_tile.zoom):
                     logger.info("Skipped to tile " + str(tile))
                     should_skip = False
+
+                    # reset to start time if we were skipping
+                    rate_calculator.reset()
+                    rate_calculator.start()
                 else:
                     # otherwise, skip tiles that don't match
                     logger.debug("Skipping " + str(tile))
@@ -91,6 +99,14 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
                 except queue.Full:
                     logger.debug("Queue full, retrying 'put' for " + str(item))
                     continue
+
+            # count enqueuing the tile towards the download rate
+            rate_calculator.tock()
+
+            ave_rate = rate_calculator.tick()
+            if ave_rate is not None:
+                logger.info("Download rate (tiles/second): " + str(ave_rate))
+
 
     logger.debug("Telling queue processing has stopped...")
     tile_queue.join()
@@ -574,6 +590,97 @@ class MongoTileStore(TileStore):
 
         # add our tile to the collection, overwriting old data if it exists
         self.collection.insert(tile)
+
+class RateCalculator:
+    """
+    Used to track and calculate rates.
+    """
+
+    def __init__(self, tick_rate_ms, window_size):
+        if tick_rate_ms < 0:
+            raise ValueError("Tick rate must be at least 0")
+
+        if window_size < 1:
+            raise ValueError("Window size must be at least 1")
+
+        # how long we should go between ticks
+        self.tick_rate_ms = tick_rate_ms
+
+        # how many rates should be accumulated to calculate the running average
+        self.window_size = window_size
+
+        # rate list, first item is oldest rate
+        self.window = []
+
+        # how many tocks we've accumulated since the last tick
+        self.tock_count = 0
+
+        # time of the last tick
+        self.last_tick_time = None
+
+    def start(self):
+        """
+        Start calculating the rate.
+        """
+
+        self.window = []
+        self.tock_count = 0
+        self.last_tick_time = time.time()
+
+    def reset(self):
+        """
+        Reset to initial state.
+        """
+
+        self.window = []
+        self.tock_count = 0
+        self.last_tick_time = None
+
+    def tock(self):
+        """
+        Count an action towards the rate.
+        """
+
+        if self.last_tick_time is None:
+            raise ValueError("Must start the calculator before tocking!")
+
+        self.tock_count += 1
+
+    def tick(self):
+        """
+        Return rate of tocks if we've reached the next tick time, otherwise
+        None.
+        """
+
+        if self.last_tick_time is None:
+            raise ValueError("Must start the calculator before ticking!")
+
+        tt = time.time()
+        if tt >= self.last_tick_time + (1.0 * self.tick_rate_ms / 1000):
+            # calculate the current rate
+            rate = 0.0
+            if self.tock_count > 0:
+                rate = self.tock_count / (tt - self.last_tick_time)
+
+            # keep a running average of previous rates
+            if len(self.window) >= self.window_size:
+                self.window.pop(0)
+            self.window.append(rate)
+
+            window_sum = sum(self.window)
+            ave_rate = 0.0
+            if window_sum > 0:
+                ave_rate = 1.0 * window_sum / len(self.window)
+
+            # reset counters for next rate calculation
+            self.tock_count = 0
+            self.last_tick_time = tt
+
+            # return the rate if we had reached the tick time
+            return rate
+
+        # return None otherwise, to indicate the tick time hasn't come yet
+        return None
 
 class Polygon:
     """
