@@ -133,10 +133,15 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
                         " as " + str(tile_type) + "...")
 
                 tile_data = tile.download(tile_type)
-                logger.info("Downloaded " + str(tile) + " as " + str(tile_type))
+                logger.info("Downloaded " + str(len(tile_data)) + " bytes " +
+                        "for " + str(tile))
 
-                logger.debug(tname + " downloaded " +
-                        str(len(tile_data)) + " bytes")
+                # log the number of retries it took if we failed at least once
+                if fail_count > 0:
+                    retry_count = max_failures - fail_count
+                    logger.info("Took " + str(retry_count) + " retry attempt" +
+                            ("" if retry_count == 1 else "s") +
+                            " to download " + str(tile))
 
                 logger.debug(tname + " storing " + str(tile) + "...")
 
@@ -159,13 +164,13 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
                     tile_queue.put((fail_count + 1, tile))
 
                     rr = str(max_failures - (fail_count + 1))
-                    logger.warning("Download of " + t + " as " + tt +
+                    logger.warning("Download of " + t +
                             " failed with message '" + m + "' " +
                             "(attempts remaining: " + rr + ")")
                 else:
                     # give up otherwise
-                    logger.error("Download of " + t + " as " + tt +
-                            " failed with message '" + m + "' (out of retries)")
+                    logger.error("Download of " + t + " failed with message '" +
+                            m + "' (out of retries)")
 
             # signal that we finished processing this tile
             tile_queue.task_done()
