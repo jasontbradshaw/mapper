@@ -89,16 +89,16 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
                 except queue.Full:
                     continue
 
-    logging.debug("Telling queue processing has stopped...")
+    logger.debug("Telling queue processing has stopped...")
     tile_queue.join()
-    logging.debug("Queue stopped processing")
+    logger.debug("Queue stopped processing")
 
-    logging.debug("Signaling threads to halt")
+    logger.debug("Signaling threads to halt")
     halt_event.set()
 
-    logging.debug("Joining all downloader threads...")
+    logger.debug("Joining all downloader threads...")
     [thread.join() for thread in threads]
-    logging.debug("Downloader threads joined")
+    logger.debug("Downloader threads joined")
 
 def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
         max_failures, halt_event, logger=None):
