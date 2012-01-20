@@ -119,12 +119,8 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
     # get the current thread name for use in log messages
     tname = threading.current_thread().name
 
-    while 1:
-        # halt when told in addition to halting when there are no more tiles
-        if halt_event.wait(0):
-            logger.debug(tname + " got halt signal")
-            break
-
+    # try to pull from the queue as long as the halt event hasn't happened
+    while not halt_event.wait(0):
         try:
             # pull a tile from the queue
             fail_count, tile = tile_queue.get(True, timeout)
@@ -181,7 +177,7 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
         except queue.Empty:
             continue
 
-    logger.debug(tname + " exiting")
+    logger.debug(tname + " got halt signal, exiting")
 
 def parse_shape_file(shape_file):
     """
