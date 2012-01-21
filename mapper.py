@@ -470,16 +470,13 @@ class TileStore:
     tile data and stores it however the class chooses.
     """
 
-    def __init__(self, *args, **kwargs):
-        raise NotImplemented(self.__class__.__name__ + " can't be instantiated")
-
     def store(self, tile_type, tile, tile_data):
         """
         Stores a single tile in the store however the class chooses. This method
         should be thread-safe, as no attempts are made to call it synchronously.
         """
 
-        raise NotImplemented("Implement this in your own subclass!")
+        raise NotImplemented(self.__class__.__name__ + " must implement this!")
 
 class NullTileStore(TileStore):
     """
