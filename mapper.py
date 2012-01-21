@@ -986,7 +986,7 @@ if __name__ == "__main__":
 
     parser.add_argument("-s", "--tile-store", default="file",
             choices=["null", "file", "mongo"],
-            help="where tiles are stored")
+            help="where tiles are stored (default file)")
 
     parser.add_argument("-k", "--skip-to-tile", nargs=3, type=int, default=None,
             help="tile to skip to before downloading tiles (format 'x y zoom'")
