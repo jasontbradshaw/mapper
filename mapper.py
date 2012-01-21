@@ -410,39 +410,16 @@ class Tile:
         except Exception, e:
             raise Tile.TileDownloadError(str(e))
 
-    def hash_google(self):
-        """
-        Hashes the tile based only on its Google coordinates and zoom.
-        """
-
+    def __hash__(self):
         result = 17
 
         result += result * self.x * 13
         result += result * self.y * 43
-        result += result * self.zoom * 19
-
-        return result * 7
-
-    def hash_mercator(self):
-        """
-        Hashes the tile based only on its Mercator coordinates and zoom.
-        """
-
-        result = 13
-
         result += result * hash(self.latitude) * 41
         result += result * hash(self.longitude) * 11
-        result += result * self.zoom * 13
+        result += result * self.zoom * 19
 
-        return result * 19
-
-    def __hash__(self):
-        """
-        Uses both custom hash functions together to generate a hash over all the
-        members of the tile.
-        """
-
-        return self.hash_google() ^ self.hash_mercator()
+        return result * 29
 
     def __eq__(self, other):
         return (isinstance(other, Tile) and
