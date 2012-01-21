@@ -158,11 +158,7 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
                             ("" if retry_count == 1 else "s") +
                             " to download " + str(tile))
 
-                logger.debug(tname + " storing " + str(tile) + "...")
-
                 tile_store.store(tile_type, tile, tile_data)
-
-                logger.debug(tname + " stored " + str(tile))
 
             except Tile.TileDownloadError, e:
                 # common error message parameters
@@ -181,7 +177,7 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
                     rr = str(max_failures - (fail_count + 1))
                     logger.warning("Download of " + t +
                             " failed with message '" + m + "' " +
-                            "(attempts remaining: " + rr + ")")
+                            "(retries remaining: " + rr + ")")
                 else:
                     # give up otherwise
                     logger.error("Download of " + t + " failed with message '" +
