@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import collections
+from collections import namedtuple, defaultdict
 from math import pi, atan, exp, sin, log
 import os
 import itertools
@@ -249,7 +249,7 @@ class Tile:
     class TileDownloadError(Exception): pass
 
     # a simple class for tile types with a descriptive name and a URL 'v' value
-    TileType = collections.namedtuple("TileType", ["name", "v"])
+    TileType = namedtuple("TileType", ["name", "v"])
 
     # possible kinds of tile for initialization
     KIND_GOOGLE = "google"
@@ -658,11 +658,12 @@ class Polygon:
     """
 
     # represents the bounding box of some points
-    Bounds = collections.namedtuple("Bounds", ["top", "right", "bottom", "left"])
+    Bounds = namedtuple("Bounds", ["top", "right", "bottom", "left"])
 
     class Edge:
         """
-        Represents an edge used in the sorted edge table and active edge table.
+        Represents an edge used in the sorted edge table and active edge table
+        calculations.
         """
 
         def __init__(self, y_max, x_min, rise, run):
@@ -837,7 +838,7 @@ class Polygon:
         polygon_bounds = Polygon.get_bounds(*vertices)
 
         # iterate top to bottom along the y axis, building the SET
-        sorted_edges = collections.defaultdict(list)
+        sorted_edges = defaultdict(list)
         for y in xrange(polygon_bounds.top[1], polygon_bounds.bottom[1] + 1):
             for a, b in lines:
                 # get bounding box for this line
