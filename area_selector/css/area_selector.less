@@ -120,6 +120,29 @@ body {
     padding-right: @hpadding + 2px;
 
     &:hover {
-        background: rgb(245, 245, 245);
+        @menu_hover_color: rgb(245, 245, 245);
+        background: @menu_hover_color;
+    }
+}
+
+// an overlay of tile outlines and tile coordinates
+.coord_overlay_tile {
+    // same size as a standard tile
+    width: 256px;
+    height: 256px;
+
+    // only outline two sides, so borders don't double-up on all edges
+    border-left: 1px dotted gray;
+    border-top: 1px dotted gray;
+
+    // tile coordinate text goes in the lower right corner
+    .coord_text {
+        font-family: monospace;
+
+        position: absolute;
+        bottom: 0;
+        right: 0;
+
+        margin-right: 5px;
     }
 }
