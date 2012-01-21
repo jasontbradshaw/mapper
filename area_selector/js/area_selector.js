@@ -1,6 +1,21 @@
 $(function () {
-    // force less.js to stop caching files while developing!
-    destroyLessCache("css");
+    // destroys the localStorage copy of CSS that less.js creates
+    (function (pathToCss) { // e.g. '/css/' or '/stylesheets/'
+        if (!window.localStorage || !less || less.env !== 'development') {
+            return;
+        }
+        var host = window.location.host;
+        var protocol = window.location.protocol;
+        var keyPrefix = protocol + '//' + host + pathToCss;
+
+        for (var key in window.localStorage) {
+            if (key.indexOf(keyPrefix) === 0) {
+                delete window.localStorage[key];
+            }
+        }
+
+        console.log("Destroyed less.js cache");
+    })("css");
 
     // keep track of keyboard and mouse state
     var keypressTracker = setupKeypressTracker();
@@ -10,6 +25,8 @@ $(function () {
 
     // build the main map and allow polygon creation
     var map = setupMap();
+    setupViewPersistence(map);
+    setupControls(map);
     setupPolygon(map, keypressTracker, mouseTracker);
 });
 
@@ -83,7 +100,6 @@ var setupMenu = function () {
     // hide the menu after it or the body is clicked
     body.click(menuHide);
     menu.click(menuHide);
-
 }
 
 // initialize the main map
@@ -102,12 +118,27 @@ var setupMap = function () {
         mapTypeControl: true,
     });
 
+    return map;
+};
+
+// puts our custom controls into the map
+var setupControls = function (map) {
     // add custom controls for the help text and the zoom indicator
     var helpBox = $("#help");
     map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(helpBox.get(0));
 
     var zoomIndicator = $("#zoom_indicator");
+    zoomIndicator.text(map.getZoom()); // set zoom to map's current zoom level
     map.controls[google.maps.ControlPosition.LEFT_TOP].push(zoomIndicator.get(0));
+
+    // update the zoom indicator when the zoom level changes
+    google.maps.event.addListener(map, "zoom_changed", function () {
+        zoomIndicator.text(map.getZoom());
+    });
+};
+
+// stores the maps' location to persist it between page loads
+var setupViewPersistence = function (map) {
 
     // go to the last coordinates of the map if there were any
     if (localStorage.getItem("lastMapView") !== null) {
@@ -115,9 +146,6 @@ var setupMap = function () {
         map.panTo(new google.maps.LatLng(lastView.latitude, lastView.longitude));
         map.setZoom(lastView.zoom);
     }
-
-    // set the zoom indicator's text after we load the zoom
-    zoomIndicator.text(map.getZoom());
 
     // store the current view of the map so we can reload it next time
     var storeLastView = function () {
@@ -135,12 +163,7 @@ var setupMap = function () {
 
     google.maps.event.addListener(map, "zoom_changed", function () {
         storeLastView();
-
-        // also, update the zoom indicator with the current zoom level
-        zoomIndicator.text(map.getZoom());
     });
-
-    return map;
 };
 
 // make clicking create a polygon on the map, and right-clicking show its menu
@@ -375,20 +398,4 @@ var polygonToString = function (polygon) {
     });
 
     return stringData;
-};
-
-// destroys the localStorage copy of CSS that less.js creates
-var destroyLessCache = function (pathToCss) { // e.g. '/css/' or '/stylesheets/'
-    if (!window.localStorage || !less || less.env !== 'development') {
-        return;
-    }
-    var host = window.location.host;
-    var protocol = window.location.protocol;
-    var keyPrefix = protocol + '//' + host + pathToCss;
-
-    for (var key in window.localStorage) {
-        if (key.indexOf(keyPrefix) === 0) {
-            delete window.localStorage[key];
-        }
-    }
 };
