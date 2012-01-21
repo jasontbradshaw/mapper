@@ -89,4 +89,22 @@ uniform_tiles = [
     Tile.from_google(119822, 215827, 19) # cemetary, university, others?
 ]
 
+print "area lines:"
+horizontal = [
+    (0, 0),
+    (10, 0),
+]
+pprint(Polygon.get_area(horizontal))
+vertical = [
+    (0, 0),
+    (0, 10),
+]
+pprint(Polygon.get_area(vertical))
+diagonal = [
+    (0, 0),
+    (10, 10),
+]
+pprint(Polygon.get_area(diagonal))
+print
+
 #mapper.download_area(Tile.TYPE_MAP, ut_corners, NullTileStore(), range(20))
