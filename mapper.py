@@ -633,7 +633,7 @@ class RateCalculator:
                 rate = self.tock_count / (tt - self.last_tick_time)
 
             # keep a running average of previous rates
-            if len(self.window) >= self.window_size:
+            while len(self.window) >= self.window_size:
                 self.window.pop(0)
             self.window.append(rate)
 
