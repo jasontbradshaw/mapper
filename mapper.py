@@ -90,14 +90,13 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
                     logger.debug("Skipping " + str(tile))
                     continue
 
-            item = (0, tile)
             while 1:
                 try:
-                    logger.debug("Adding " + str(item) + " to queue")
-                    tile_queue.put(item, True, 0.1)
+                    logger.debug("Adding " + str(tile) + " to queue")
+                    tile_queue.put(tile, True, 0.1)
                     break
                 except queue.Full:
-                    logger.debug("Queue full, retrying 'put' for " + str(item))
+                    logger.debug("Queue full, retrying 'put' for " + str(tile))
                     continue
 
             # count enqueuing the tile towards the download rate
@@ -140,48 +139,51 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
     while not halt_event.wait(0):
         try:
             # pull a tile from the queue
-            fail_count, tile = tile_queue.get(True, timeout)
+            tile = tile_queue.get(True, timeout)
 
-            try:
-                # download and store the tile data
-                logger.debug(tname + " downloading " + str(tile) +
-                        " as " + str(tile_type) + "...")
+            # retry the tile while it fails to download, up to a maximum
+            fail_count = 0
+            while fail_count < max_failures:
+                try:
+                    # download and store the tile data
+                    logger.debug(tname + " downloading " + str(tile) +
+                            " as " + str(tile_type) + "...")
 
-                tile_data = tile.download(tile_type)
-                logger.info("Downloaded " + str(len(tile_data)) + " bytes " +
-                        "for " + str(tile))
+                    tile_data = tile.download(tile_type)
+                    logger.info("Downloaded " + str(len(tile_data)) + " bytes " +
+                            "for " + str(tile))
 
-                # log the number of retries it took if we failed at least once
-                if fail_count > 0:
-                    retry_count = max_failures - fail_count
-                    logger.info("Took " + str(retry_count) + " retry attempt" +
-                            ("" if retry_count == 1 else "s") +
-                            " to download " + str(tile))
+                    tile_store.store(tile_type, tile, tile_data)
 
-                tile_store.store(tile_type, tile, tile_data)
+                    # move on to the next tile if we downloaded successfully
+                    break
 
-            except Tile.TileDownloadError, e:
-                # common error message parameters
-                t = str(tile)
-                tt = str(tile_type)
-                m = str(e.message)
+                except Tile.TileDownloadError, e:
+                    # common error message parameters
+                    t = str(tile)
+                    tt = str(tile_type)
+                    m = str(e.message)
 
-                # retry if we haven't yet exceeded the max
-                if fail_count < max_failures:
-                    # TODO: there might be a dining-philosophers condition here.
-                    # if all threads simultaneously arrive at a failed tile and
-                    # then the queue fills up, there will be nobody to make more
-                    # room in the queue.
-                    tile_queue.put((fail_count + 1, tile))
+                    # retry if we haven't yet exceeded the max
+                    if fail_count < max_failures:
+                        rr = str(max_failures - (fail_count + 1))
+                        logger.warning("Download of " + t +
+                                " failed with message '" + m + "' " +
+                                "(retries remaining: " + rr + ")")
+                    else:
+                        # give up otherwise
+                        logger.error("Download of " + t + " failed with message '" +
+                                m + "' (out of retries)")
 
-                    rr = str(max_failures - (fail_count + 1))
-                    logger.warning("Download of " + t +
-                            " failed with message '" + m + "' " +
-                            "(retries remaining: " + rr + ")")
-                else:
-                    # give up otherwise
-                    logger.error("Download of " + t + " failed with message '" +
-                            m + "' (out of retries)")
+                    # count this failure towards the max
+                    fail_count += 1
+
+            # log the number of retries it took if we failed at least once
+            if fail_count > 0:
+                retry_count = max_failures - fail_count
+                logger.info("Took " + str(retry_count) + " retry attempt" +
+                        ("" if retry_count == 1 else "s") +
+                        " to download " + str(tile))
 
             # signal that we finished processing this tile
             tile_queue.task_done()
