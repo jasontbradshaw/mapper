@@ -51,12 +51,12 @@ def download_area(tile_type, vertices, tile_store, zoom_levels, num_threads=10,
         logger.info("Skipping to " + str(skip_to_tile) + "...")
 
     for zoom in zoom_levels:
-        logger.info("Downloading zoom level " + str(zoom))
-
         # skip entire zoom levels if necessary to find the first non-skip tile
         if should_skip and skip_to_tile.zoom != zoom:
             logger.debug("Skipping zoom level " + str(zoom))
             continue
+
+        logger.info("Downloading zoom level " + str(zoom))
 
         # translate vertices to the given zoom level, then to coordinate pairs
         points = []
