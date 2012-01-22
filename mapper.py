@@ -129,6 +129,9 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
     object indicating whether we should stop downloading.
     """
 
+    # downloading won't work if our failure threshold is too low
+    assert max_failures >= 1
+
     # use a default logger if none was specified
     logger = __get_null_logger() if logger is None else logger
 
@@ -159,31 +162,21 @@ def __download_tiles_from_queue(tile_type, tile_queue, tile_store, timeout,
                     break
 
                 except Tile.TileDownloadError, e:
-                    # common error message parameters
-                    t = str(tile)
-                    tt = str(tile_type)
-                    m = str(e.message)
-
-                    # retry if we haven't yet exceeded the max
-                    if fail_count < max_failures:
-                        rr = str(max_failures - (fail_count + 1))
-                        logger.warning("Download of " + t +
-                                " failed with message '" + m + "' " +
-                                "(retries remaining: " + rr + ")")
-                    else:
-                        # give up otherwise
-                        logger.error("Download of " + t + " failed with message '" +
-                                m + "' (out of retries)")
+                    logger.warning("Download of " + str(tile) +
+                            " failed with message '" + str(e.message) + "'")
 
                     # count this failure towards the max
                     fail_count += 1
 
-            # log the number of retries it took if we failed at least once
-            if fail_count > 0:
-                retry_count = max_failures - fail_count
+            # log whether the download succeeded or failed
+            if fail_count >= max_failures:
+                logger.error("Download of " + str(tile) +
+                    " failed after " + str(max_failures) +
+                    " retry attempt" + str("" if max_failures == 1 else "s"))
+            elif fail_count > 0:
                 logger.info("Took " + str(retry_count) + " retry attempt" +
-                        ("" if retry_count == 1 else "s") +
-                        " to download " + str(tile))
+                        ("" if retry_count == 1 else "s") + " to download " +
+                        str(tile))
 
             # signal that we finished processing this tile
             tile_queue.task_done()
