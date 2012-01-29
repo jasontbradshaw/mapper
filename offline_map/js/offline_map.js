@@ -106,6 +106,30 @@ var setupMap = function () {
 
 // add our custom offline map type to the map
 var setupOfflineMapType = function (map) {
+
+    var CoordMapType = function () {};
+    CoordMapType.prototype.tileSize = new google.maps.Size(256, 256);
+    CoordMapType.prototype.maxZoom = 21;
+
+    // names for the map type
+    CoordMapType.prototype.name = "Coordinates";
+    CoordMapType.prototype.alt = "Tile Coordinates Map Type";
+
+    // return a basic overlay skeleton with classes that we style in css
+    CoordMapType.prototype.getTile = function (coord, zoom, ownerDocument) {
+        var div = $("<div></div>")
+            .addClass("coord_overlay_tile")
+            .append($("<div></div>")
+                    .addClass("coord_text")
+                    .text(coord.x + ", " + coord.y)
+           );
+
+        return div.get(0);
+    };
+
+    // add the coord map type to the map as an overlay
+    map.overlayMapTypes.insertAt(0, new CoordMapType());
+
     var offlineMapType = new google.maps.ImageMapType({
         tileSize: new google.maps.Size(256, 256),
 
