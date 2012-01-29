@@ -749,7 +749,11 @@ class Polygon:
             last_point = point
 
         # add the pair from last to first
-        yield (last_point, vertices[0])
+        if exclude_horizontal:
+            if last_point[1] != vertices[0][1]:
+                yield (last_point, vertices[0])
+        else:
+            yield (last_point, vertices[0])
 
 
     @staticmethod
