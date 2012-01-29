@@ -830,6 +830,39 @@ class Polygon:
                 yield point
             return
 
+        # condense consecutive vertical edges to single edges
+        new_vertices = []
+        cur = []
+        for vertex in vertices:
+            if len(cur) > 0 and vertex[0] != cur[0][0]:
+                # sort by y coordinate if we had a run of vertical sections
+                if len(cur) > 2:
+                    cur.sort(key=lambda v: v[1])
+
+                # keep the longest section
+                new_vertices.append(cur[0])
+
+                if len(cur) > 1:
+                    new_vertices.append(cur[-1])
+
+                # reset the vertex buffer to what it must be for next round
+                cur = [vertex]
+
+            if len(cur) == 0 or vertex[0] == cur[0][0]:
+                cur.append(vertex)
+
+        # append the final vertices
+        if len(cur) > 0:
+            if len(cur) > 2:
+                cur.sort(key=lambda v: v[1])
+
+            new_vertices.append(cur[0])
+
+            if len(cur) > 1:
+                new_vertices.append(cur[-1])
+
+        vertices = new_vertices
+
         # get all lines, keeping only non-horizontal lines
         lines = [pair for pair in Polygon.generate_vertex_pairs(vertices, True)]
 
