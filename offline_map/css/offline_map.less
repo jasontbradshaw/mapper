@@ -33,6 +33,7 @@
 body {
     // default font and color
     font-family: "Arial", sans-serif;
+    font-size: 62.5%;
     color: rgb(60, 60, 60);
 }
 
@@ -57,12 +58,24 @@ body {
 
     // tile coordinate text goes in the lower right corner
     .coord_text {
-        font-family: monospace;
+        font-size: 1.2em;
+        font-weight: bold;
+
+        // give the numbers good contrast
+        color: white;
+        background-color: black;
+        .border-radius(10px);
+
+        @hpadding: 4px;
+        padding-left: @hpadding;
+        padding-right: @hpadding;
+
+        opacity: 0.6;
 
         position: absolute;
         bottom: 0;
         right: 0;
 
-        margin-right: 5px;
+        margin: 5px;
     }
 }
