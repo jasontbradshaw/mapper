@@ -813,8 +813,10 @@ class Polygon:
         """
 
         # collapse adjacent duplicate vertices
+        print "vertices before:", vertices
         collapse = lambda a, p: a + [p] if (len(a) == 0 or p != a[-1]) else a
         vertices = reduce(collapse, vertices, [])
+        print "vertices after:", vertices
 
         # remove identical start/end vertices as well
         while len(vertices) > 1 and vertices[0] == vertices[-1]:
@@ -861,10 +863,12 @@ class Polygon:
             if len(cur) > 1:
                 new_vertices.append(cur[-1])
 
+        print "condensed vertices:", new_vertices
         vertices = new_vertices
 
         # get all lines, keeping only non-horizontal lines
         lines = [pair for pair in Polygon.generate_vertex_pairs(vertices, True)]
+        print "lines:", lines
 
         # find the bounds for the whole polygon
         polygon_bounds = Polygon.get_bounds(*vertices)
@@ -897,6 +901,8 @@ class Polygon:
 
                     # keep the entries sorted by y_max then x_min
                     sorted_edges[y].sort(key=lambda e: (e.y_max, e.x_min))
+
+        print "sorted edges:", sorted_edges
 
         # list of active edges, those intersecting with the current scanline
         active_edges = []
